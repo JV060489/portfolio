@@ -9,13 +9,17 @@ import { CustomEase } from "gsap/CustomEase";
 
 // Register CustomEase plugin and create a reusable named curve
 gsap.registerPlugin(CustomEase);
-CustomEase.create("introZoom", "M0,0 C0.29,0 0.46,0.116 0.472,0.231 0.495,0.468 0.481,0.358 0.498,0.502 0.529,0.771 0.48,0.816 0.564,0.894 0.627,0.952 0.704,1 1,1 ");
+CustomEase.create(
+  "introZoom",
+  "M0,0 C0.29,0 0.46,0.116 0.472,0.231 0.495,0.468 0.481,0.358 0.498,0.502 0.529,0.771 0.48,0.816 0.564,0.894 0.627,0.952 0.704,1 1,1 ",
+);
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;
 const COLUMNS = 320;
 const SPACING = 1;
 const BOUNDING_BOX = 400;
+const HOVER_RADIUS = 5; // cells around the cursor that get triggered
 
 // ── Bayer 4×4 threshold map ──────────────────────────────────────────────────
 const BAYER_4X4_DATA = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -132,12 +136,12 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-// ── Text → canvas texture ────────────────────────────────────────────────────
+// ── Text → canvas texture + CPU pixel mask ──────────────────────────────────
 async function createTextTexture(
   text: string,
   cols: number,
   rows: number,
-): Promise<THREE.CanvasTexture> {
+): Promise<{ texture: THREE.CanvasTexture; mask: Uint8Array }> {
   // Ensure Pixelify Sans is loaded before drawing
   await document.fonts.load(`400 40px "Pixelify Sans"`);
 
@@ -166,15 +170,72 @@ async function createTextTexture(
   ctx.fillStyle = "#ffffff";
   ctx.fillText(text, cols / 2, rows / 2);
 
-  return new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(canvas);
+
+  // Build a CPU-side mask so hover only fires on real text cells.
+  // Sample each cell at its texel-centre (matching the shader's UV formula).
+  const imageData = ctx.getImageData(0, 0, cols, rows);
+  const count = rows * cols;
+  const mask = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    // texel centre, same mapping as the vertex shader:
+    // st = (col + 0.5, (rows - 1 - row) + 0.5) / (cols, rows)
+    const texRow = rows - 1 - row; // flip Y
+    const pixelIdx = (Math.round(texRow) * cols + Math.round(col)) * 4;
+    mask[i] = imageData.data[pixelIdx] > 10 ? 1 : 0;
+  }
+
+  return { texture, mask };
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-export default function IntroText() {
+interface IntroTextProps {
+  onIntroComplete?: () => void;
+}
+
+export default function IntroText({ onIntroComplete }: IntroTextProps) {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const anchorRef = useRef<THREE.Object3D>(new THREE.Object3D()); // virtual anchor
-  const camLocalPos = useRef(new THREE.Vector3(0, 0, 1000)); // scratch vector
-  const { scene, size } = useThree();
+  const camLocalPos = useRef(new THREE.Vector3(0, 0, 1000));
+
+  // Keep a stable ref so the GSAP timeline always calls the latest callback
+  // without needing to be listed as a useEffect dependency.
+  const onIntroCompleteRef = useRef(onIntroComplete);
+  useEffect(() => {
+    onIntroCompleteRef.current = onIntroComplete;
+  }, [onIntroComplete]);
+
+  // ── Hover-related refs ───────────────────────────────────────────────────
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const textMaskRef = useRef<Uint8Array | null>(null); // 1 = text cell
+  const zHoverRef = useRef<Float32Array | null>(null); // per-cell hover Z
+  const animatingRef = useRef<Set<number>>(new Set()); // IDs with active tween
+  const animDoneRef = useRef(false); // intro complete?
+  const matScratch = useRef(new THREE.Matrix4());
+  // Only true after a real pointermove fires — prevents the default (0,0)
+  // pointer position from triggering hover on the center cells at anim end.
+  const pointerActiveRef = useRef(false);
+
+  const { scene, size, raycaster, pointer, gl } = useThree();
+
+  // ── Track real pointer presence on the canvas ──────────────────────────────
+  useEffect(() => {
+    const el = gl.domElement;
+    const onMove = () => {
+      pointerActiveRef.current = true;
+    };
+    const onLeave = () => {
+      pointerActiveRef.current = false;
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, [gl]);
 
   // ── Resize handler ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -206,6 +267,7 @@ export default function IntroText() {
     let geometry: THREE.BoxGeometry | null = null;
     let material: THREE.ShaderMaterial | null = null;
     let texture: THREE.CanvasTexture | null = null;
+    const animating = animatingRef.current; // stable Set reference for cleanup
 
     const count = ROWS * COLUMNS;
 
@@ -242,7 +304,13 @@ export default function IntroText() {
 
     // Text texture (async — waits for Pixelify Sans to be ready)
     const buildScene = async () => {
-      texture = await createTextTexture("JANARTHANAN VASANTH", COLUMNS, ROWS);
+      const { texture: tex, mask } = await createTextTexture(
+        "JANARTHANAN VASANTH",
+        COLUMNS,
+        ROWS,
+      );
+      texture = tex;
+      textMaskRef.current = mask;
 
       // Material
       material = new THREE.ShaderMaterial({
@@ -274,6 +342,11 @@ export default function IntroText() {
       }
       mesh.instanceMatrix.needsUpdate = true;
 
+      // Expose mesh + hover Z buffer for useFrame
+      meshRef.current = mesh;
+      zHoverRef.current = new Float32Array(count); // all zeros
+      animDoneRef.current = false;
+
       group = new THREE.Group();
       group.add(mesh);
       scene.add(group);
@@ -292,7 +365,12 @@ export default function IntroText() {
       cam.updateProjectionMatrix();
 
       // ── GSAP timeline ─────────────────────────────────────────────────────────
-      tl = gsap.timeline();
+      tl = gsap.timeline({
+        onComplete: () => {
+          animDoneRef.current = true; // unlock hover once intro finishes
+          onIntroCompleteRef.current?.();
+        },
+      });
 
       // Dither reveal: 10 s, linear
       tl.to(
@@ -331,22 +409,109 @@ export default function IntroText() {
       geometry?.dispose();
       material?.dispose();
       texture?.dispose();
+      // Reset hover state
+      meshRef.current = null;
+      textMaskRef.current = null;
+      zHoverRef.current = null;
+      animating.clear();
+      animDoneRef.current = false;
     };
   }, [scene]);
 
-  // ── Per-frame: derive camera world position from virtual anchor ───────────
+  // ── Per-cell hover trigger (fires once per instance on first intersect) ──────
+  const triggerHover = (id: number, staggerDelay = 0) => {
+    const zHover = zHoverRef.current;
+    if (!zHover) return;
+    animatingRef.current.add(id);
+
+    const proxy = { z: 0 };
+    // Jump up quickly, then spring back immediately with no hold
+    gsap.to(proxy, {
+      z: 5,
+      duration: 0.18,
+      delay: staggerDelay,
+      ease: "back.out(1)",
+      onUpdate: () => {
+        zHover[id] = proxy.z;
+      },
+      onComplete: () => {
+        gsap.to(proxy, {
+          z: 0,
+          duration: 0.9,
+          ease: "elastic.out(1, 0.45)",
+          onUpdate: () => {
+            zHover[id] = proxy.z;
+          },
+          onComplete: () => {
+            animatingRef.current.delete(id);
+          },
+        });
+      },
+    });
+  };
+
+  // ── Per-frame: camera + hover matrix flush + raycasting ──────────────────
   useFrame(() => {
     const cam = cameraRef.current;
     const anchor = anchorRef.current;
     if (!cam) return;
 
-    // Camera sits at local (0, 0, 1000) inside the anchor
+    // Camera: derive world position from virtual anchor
     anchor.updateMatrixWorld(true);
     const worldPos = camLocalPos.current
       .set(0, 0, 1000)
       .applyMatrix4(anchor.matrixWorld);
     cam.position.copy(worldPos);
     cam.lookAt(anchor.position);
+
+    // Nothing to do until the intro animation has completed
+    if (!animDoneRef.current) return;
+    const mesh = meshRef.current;
+    const zHover = zHoverRef.current;
+    const mask = textMaskRef.current;
+    if (!mesh || !zHover || !mask) return;
+
+    // Flush per-instance hover Z offsets into the instance matrices.
+    // This must run even when the pointer has left the canvas so that
+    // in-progress spring-back tweens can finish updating their cells.
+    if (animatingRef.current.size > 0) {
+      const mat = matScratch.current;
+      animatingRef.current.forEach((id) => {
+        mesh.getMatrixAt(id, mat);
+        mat.elements[14] = zHover[id]; // column-major: element 14 = Z translation
+        mesh.setMatrixAt(id, mat);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // Raycast only while the pointer is actually over the canvas
+    if (!pointerActiveRef.current) return;
+
+    // Raycast using R3F's auto-updated pointer + raycaster
+    raycaster.setFromCamera(pointer, cam);
+    const hits = raycaster.intersectObject(mesh, false);
+    if (hits.length > 0) {
+      const hitId = hits[0].instanceId;
+      if (hitId !== undefined && mask[hitId] === 1) {
+        const hitRow = Math.floor(hitId / COLUMNS);
+        const hitCol = hitId % COLUMNS;
+
+        // Trigger every text cell within HOVER_RADIUS grid-cells of the hit
+        for (let dr = -HOVER_RADIUS; dr <= HOVER_RADIUS; dr++) {
+          for (let dc = -HOVER_RADIUS; dc <= HOVER_RADIUS; dc++) {
+            const dist = Math.sqrt(dr * dr + dc * dc);
+            if (dist > HOVER_RADIUS) continue;
+            const r = hitRow + dr;
+            const c = hitCol + dc;
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLUMNS) continue;
+            const nid = r * COLUMNS + c;
+            if (mask[nid] !== 1 || animatingRef.current.has(nid)) continue;
+            // Stagger ripples outward from the center (max ~0.08 s at edge)
+            triggerHover(nid, (dist / HOVER_RADIUS) * 0.08);
+          }
+        }
+      }
+    }
   });
 
   return <OrthographicCamera ref={cameraRef} makeDefault near={1} far={2000} />;
