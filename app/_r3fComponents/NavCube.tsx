@@ -379,15 +379,14 @@ export default function NavCube({ visible }: { visible: boolean }) {
         position: "absolute",
         top: 20,
         right: 20,
-        width: 190,
-        height: 190,
+        width: 200,
+        height: 200,
         zIndex: 20,
-        borderRadius: 8,
         overflow: "hidden",
         // Start fully hidden — useEffect/GSAP owns all opacity & scale transitions
         opacity: 0,
         transform: "scale(0.82)",
-        pointerEvents: "none",
+        pointerEvents: "auto",
       }}
     >
       {/*
@@ -401,7 +400,7 @@ export default function NavCube({ visible }: { visible: boolean }) {
         style={{ width: "100%", height: "100%" }}
       >
         <Canvas
-          camera={{ position: [0, 1.2, 4.8], fov: 45, near: 0.1, far: 100 }}
+          camera={{ position: [0, 0, 4.8], fov: 45, near: 0.1, far: 100 }}
           style={{ background: "black", width: "100%", height: "100%" }}
           gl={{ antialias: true }}
         >

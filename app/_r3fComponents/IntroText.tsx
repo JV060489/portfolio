@@ -14,6 +14,9 @@ CustomEase.create(
   "M0,0 C0.29,0 0.46,0.116 0.472,0.231 0.495,0.468 0.481,0.358 0.498,0.502 0.529,0.771 0.48,0.816 0.564,0.894 0.627,0.952 0.704,1 1,1 ",
 );
 
+// ── Dev toggle: set to true to skip the intro animation ─────────────────────
+const SKIP_INTRO = true;
+
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;
 const COLUMNS = 320;
@@ -126,12 +129,15 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  uniform float uInvert;
   varying vec3 vColor;
   varying vec3 vNormal;
 
   void main() {
     float shadow = dot(normalize(vec3(0.0, 1.0, 1.0)), normalize(vNormal));
     vec3  color  = clamp(vColor * (0.9 + 0.6 * shadow), 0.0, 1.0);
+    // Flip cube color for light mode (uInvert = 1.0) — dark cubes on white bg
+    color = mix(color, vec3(1.0) - color, uInvert);
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -193,9 +199,10 @@ async function createTextTexture(
 // ── Component ────────────────────────────────────────────────────────────────
 interface IntroTextProps {
   onIntroComplete?: () => void;
+  isDark?: boolean;
 }
 
-export default function IntroText({ onIntroComplete }: IntroTextProps) {
+export default function IntroText({ onIntroComplete, isDark = true }: IntroTextProps) {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const anchorRef = useRef<THREE.Object3D>(new THREE.Object3D()); // virtual anchor
   const camLocalPos = useRef(new THREE.Vector3(0, 0, 1000));
@@ -209,6 +216,7 @@ export default function IntroText({ onIntroComplete }: IntroTextProps) {
 
   // ── Hover-related refs ───────────────────────────────────────────────────
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const materialRef = useRef<THREE.ShaderMaterial | null>(null);
   const textMaskRef = useRef<Uint8Array | null>(null); // 1 = text cell
   const zHoverRef = useRef<Float32Array | null>(null); // per-cell hover Z
   const animatingRef = useRef<Set<number>>(new Set()); // IDs with active tween
@@ -323,8 +331,10 @@ export default function IntroText({ onIntroComplete }: IntroTextProps) {
           uGridOffsetEnd: { value: 5 }, // larger Z offset for visible pop-out
           uTexture: { value: texture },
           uDitherProgress: { value: 0.04 },
+          uInvert: { value: 0.0 },
         },
       });
+      materialRef.current = material;
 
       // Instanced mesh: place each cell
       mesh = new THREE.InstancedMesh(geometry!, material, count);
@@ -365,36 +375,45 @@ export default function IntroText({ onIntroComplete }: IntroTextProps) {
       cam.updateProjectionMatrix();
 
       // ── GSAP timeline ─────────────────────────────────────────────────────────
-      tl = gsap.timeline({
-        onComplete: () => {
-          animDoneRef.current = true; // unlock hover once intro finishes
-          onIntroCompleteRef.current?.();
-        },
-      });
+      if (SKIP_INTRO) {
+        // Jump straight to the post-animation state
+        material.uniforms.uDitherProgress.value = 1;
+        cam.zoom = 2.5;
+        cam.updateProjectionMatrix();
+        animDoneRef.current = true;
+        // Notify parent on next tick so React commit phase is done
+        requestAnimationFrame(() => onIntroCompleteRef.current?.());
+      } else {
+        tl = gsap.timeline({
+          onComplete: () => {
+            animDoneRef.current = true; // unlock hover once intro finishes
+            onIntroCompleteRef.current?.();
+          },
+        });
 
-      // Dither reveal: 10 s, linear
-      tl.to(
-        material.uniforms.uDitherProgress,
-        {
-          value: 1,
-          duration: 10,
-          ease: "none", // use the named CustomEase curve we created above
-        },
-        0,
-      );
+        // Dither reveal: 10 s, linear
+        tl.to(
+          material.uniforms.uDitherProgress,
+          {
+            value: 1,
+            duration: 6,
+            ease: "none",
+          },
+          0,
+        );
 
-      // Camera: settle closer — zoom lands at 1.5 (text fills the screen)
-      tl.to(
-        cam,
-        {
-          zoom: 2.5,
-          duration: 12,
-          // use the named CustomEase curve we created above
-          ease: "introZoom",
-          onUpdate: () => cam.updateProjectionMatrix(),
-        },
-        0,
-      );
+        // Camera: settle closer — zoom lands at 2.5 (text fills the screen)
+        tl.to(
+          cam,
+          {
+            zoom: 2.5,
+            duration: 8,
+            ease: "introZoom",
+            onUpdate: () => cam.updateProjectionMatrix(),
+          },
+          0,
+        );
+      }
 
       // (removed anchor pan so the scene starts centered and zoom animation plays from there)
     }; // end buildScene
@@ -449,6 +468,13 @@ export default function IntroText({ onIntroComplete }: IntroTextProps) {
       },
     });
   };
+
+  // ── Sync isDark → uInvert uniform whenever theme changes ─────────────────
+  useEffect(() => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uInvert.value = isDark ? 0.0 : 1.0;
+    }
+  }, [isDark]);
 
   // ── Per-frame: camera + hover matrix flush + raycasting ──────────────────
   useFrame(() => {

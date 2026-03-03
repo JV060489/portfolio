@@ -135,8 +135,131 @@ export interface PixelBurstRevealProps {
    * @default 2.0
    */
   duration?: number;
+  /**
+   * When true, only pixel cells that overlap actual text glyphs are covered
+   * and animated — the surrounding padding/background remains transparent.
+   * Children are hidden via opacity until the animation completes, so the
+   * burst effect appears to *form* the text rather than uncover a rectangle.
+   *
+   * Requires `maskText` and `maskFont` to be set.
+   */
+  textMode?: boolean;
+  /**
+   * The text string to sample for glyph-shape detection.
+   * Must match what is visually rendered by `children`.
+   * Only used when `textMode` is true.
+   */
+  maskText?: string;
+  /**
+   * CSS font string used to draw the text on the sampling canvas.
+   * Format: `"[style] [weight] [size] [family]"`  e.g. `"400 30px Aldrich"`
+   * Must match the font rendered by `children` as closely as possible.
+   * Only used when `textMode` is true.
+   */
+  maskFont?: string;
+  /**
+   * Optional CSS letter-spacing value passed to the sampling canvas,
+   * e.g. `"1.2px"`.  Uses the Canvas 2D `letterSpacing` API (Chrome 107+);
+   * silently ignored on older engines.
+   * Only used when `textMode` is true.
+   */
+  maskLetterSpacing?: string;
+  /**
+   * Horizontal pixel offset at which the text is drawn on the sampling canvas.
+   * Set this to the left-padding of your text element so the sampled glyph
+   * positions align with the rendered output.
+   * @default 0
+   */
+  maskOffsetX?: number;
+  /**
+   * Text alignment used when drawing on the sampling canvas.
+   * - `"left"`   — text starts at `maskOffsetX` (default, matches left-aligned spans)
+   * - `"center"` — text is drawn at `canvas.width / 2` (use when the span is centred)
+   * - `"right"`  — text is drawn at `canvas.width - maskOffsetX`
+   * @default "left"
+   */
+  maskTextAlign?: "left" | "center" | "right";
   className?: string;
   style?: CSSProperties;
+}
+
+// ── Text-mask builder ────────────────────────────────────────────────────────
+/**
+ * Draws `text` on an OffscreenCanvas and returns the set of pixel-cell
+ * indices (row * cols + col) whose PIXEL_SIZE×PIXEL_SIZE tile contains at
+ * least one non-transparent glyph pixel.
+ *
+ * These are the only cells that PixelBurstReveal covers/animates in textMode,
+ * so the surrounding padding / background stays fully transparent.
+ */
+function buildTextMaskCells(
+  w: number,
+  h: number,
+  text: string,
+  font: string,
+  letterSpacing?: string,
+  offsetX?: number,
+  textAlign: "left" | "center" | "right" = "left",
+): Set<number> {
+  const oc = new OffscreenCanvas(w, h);
+  const ctx = oc.getContext("2d")!;
+  ctx.font = font;
+  if (letterSpacing && "letterSpacing" in ctx) {
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = letterSpacing;
+  }
+  ctx.fillStyle = "#fff";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = textAlign;
+
+  // Determine x position based on alignment
+  let drawX: number;
+  if (textAlign === "center") {
+    drawX = w / 2;
+  } else if (textAlign === "right") {
+    drawX = w - (offsetX ?? 0);
+  } else {
+    drawX = offsetX ?? 0;
+  }
+  ctx.fillText(text, drawX, h / 2);
+
+  const cols = Math.ceil(w / PIXEL_SIZE);
+  const rows = Math.ceil(h / PIXEL_SIZE);
+  const mask = new Set<number>();
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const { data } = ctx.getImageData(
+        col * PIXEL_SIZE,
+        row * PIXEL_SIZE,
+        PIXEL_SIZE,
+        PIXEL_SIZE,
+      );
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] > 20) {
+          mask.add(row * cols + col);
+          break;
+        }
+      }
+    }
+  }
+  return mask;
+}
+
+/** Fills only the cells listed in `mask` with `coverColor`. */
+function fillTextCells(
+  canvas: HTMLCanvasElement,
+  mask: Set<number>,
+  coverColor: string,
+): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const cols = Math.ceil(canvas.width / PIXEL_SIZE);
+  ctx.fillStyle = coverColor;
+  for (const idx of mask) {
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    ctx.fillRect(col * PIXEL_SIZE, row * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
+  }
 }
 
 // ── Ease ──────────────────────────────────────────────────────────────────────
@@ -153,8 +276,17 @@ function easeOutBack(t: number): number {
  *
  * Scatter directions:
  *  65 % fall from above · 18 % fly in from left · 17 % fly in from right
+ *
+ * @param mask  When provided, only cells whose index (row*cols+col) is in the
+ *              set are included — used by textMode to restrict the effect to
+ *              glyph-shaped cells.
  */
-function buildPixels(w: number, h: number, origin: OriginCoords): PixelDesc[] {
+function buildPixels(
+  w: number,
+  h: number,
+  origin: OriginCoords,
+  mask?: Set<number>,
+): PixelDesc[] {
   const cols = Math.ceil(w / PIXEL_SIZE);
   const rows = Math.ceil(h / PIXEL_SIZE);
   const pixels: PixelDesc[] = [];
@@ -165,6 +297,9 @@ function buildPixels(w: number, h: number, origin: OriginCoords): PixelDesc[] {
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
+      // In textMode, skip cells that contain no glyph pixels
+      if (mask && !mask.has(row * cols + col)) continue;
+
       const homeX = col * PIXEL_SIZE;
       const homeY = row * PIXEL_SIZE;
 
@@ -239,12 +374,20 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
       coverColor = "#000000",
       pixelColor = "#ffffff",
       duration = 2.0,
+      textMode = false,
+      maskText = "",
+      maskFont = "",
+      maskLetterSpacing,
+      maskOffsetX = 0,
+      maskTextAlign = "left",
       className,
       style,
     },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // Wrapper around children — in textMode we toggle its visibility
+    const childrenWrapperRef = useRef<HTMLDivElement>(null);
     const pixelsRef = useRef<PixelDesc[]>([]);
     const progressRef = useRef({ value: 0 });
     const rafRef = useRef<number>(0);
@@ -256,6 +399,12 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
     const pixelRef = useRef(pixelColor);
     const durRef = useRef(duration);
     const originRef = useRef(origin);
+    const textModeRef = useRef(textMode);
+    const maskTextRef = useRef(maskText);
+    const maskFontRef = useRef(maskFont);
+    const maskLetterSpacingRef = useRef(maskLetterSpacing);
+    const maskOffsetXRef = useRef(maskOffsetX);
+    const maskTextAlignRef = useRef(maskTextAlign);
     useEffect(() => {
       coverRef.current = coverColor;
     }, [coverColor]);
@@ -268,8 +417,32 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
     useEffect(() => {
       originRef.current = origin;
     }, [origin]);
+    useEffect(() => {
+      textModeRef.current = textMode;
+    }, [textMode]);
+    useEffect(() => {
+      maskTextRef.current = maskText;
+    }, [maskText]);
+    useEffect(() => {
+      maskFontRef.current = maskFont;
+    }, [maskFont]);
+    useEffect(() => {
+      maskLetterSpacingRef.current = maskLetterSpacing;
+    }, [maskLetterSpacing]);
+    useEffect(() => {
+      maskOffsetXRef.current = maskOffsetX;
+    }, [maskOffsetX]);
+    useEffect(() => {
+      maskTextAlignRef.current = maskTextAlign;
+    }, [maskTextAlign]);
 
-    // ── Fill canvas solid on mount — hides children immediately ────────────
+    // ── Fill canvas on mount — hides children immediately ──────────────────
+    //
+    // Normal mode : solid fill over entire canvas (original behaviour).
+    // Text mode   : canvas stays transparent; instead the children wrapper is
+    //               hidden via opacity so no rectangular block is visible.
+    //               We still paint text-cell covers so the first trigger() call
+    //               starts with the correct masked state.
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -278,8 +451,24 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
         canvas.height = canvas.offsetHeight || 1;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
-        ctx.fillStyle = coverRef.current;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (textModeRef.current && maskTextRef.current && maskFontRef.current) {
+          // Paint only glyph-shaped cells — background stays transparent
+          const mask = buildTextMaskCells(
+            canvas.width,
+            canvas.height,
+            maskTextRef.current,
+            maskFontRef.current,
+            maskLetterSpacingRef.current,
+            maskOffsetXRef.current,
+            maskTextAlignRef.current,
+          );
+          fillTextCells(canvas, mask, coverRef.current);
+        } else if (!textModeRef.current) {
+          ctx.fillStyle = coverRef.current;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        // In textMode with no maskText/maskFont: leave canvas transparent —
+        // the children wrapper opacity:0 handles hiding.
       };
       const id = requestAnimationFrame(fill);
       return () => {
@@ -350,18 +539,50 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
           canvas.width = Math.round(rect.width) || canvas.offsetWidth || 190;
           canvas.height = Math.round(rect.height) || canvas.offsetHeight || 190;
 
-          // Re-fill solid so no content is visible at t=0
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = coverRef.current;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const originCoords = resolveOrigin(originRef.current);
+
+          // Compute text mask first so we can use it for the initial fill too
+          let textMask: Set<number> | undefined;
+          if (
+            textModeRef.current &&
+            maskTextRef.current &&
+            maskFontRef.current
+          ) {
+            textMask = buildTextMaskCells(
+              canvas.width,
+              canvas.height,
+              maskTextRef.current,
+              maskFontRef.current,
+              maskLetterSpacingRef.current,
+              maskOffsetXRef.current,
+              maskTextAlignRef.current,
+            );
           }
 
-          const originCoords = resolveOrigin(originRef.current);
+          // Paint initial mask so no content leaks through at t=0
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            if (textMask) {
+              // textMode: cover only glyph-shaped cells, leave background clear
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              fillTextCells(canvas, textMask, coverRef.current);
+              // Children were opacity:0 — now they're covered by canvas cells,
+              // so it's safe to make them visible before the loop starts.
+              if (childrenWrapperRef.current) {
+                childrenWrapperRef.current.style.opacity = "1";
+              }
+            } else {
+              // Normal mode: solid fill over the entire canvas
+              ctx.fillStyle = coverRef.current;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+          }
+
           pixelsRef.current = buildPixels(
             canvas.width,
             canvas.height,
             originCoords,
+            textMask,
           );
           progressRef.current.value = 0;
 
@@ -403,9 +624,26 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
           ...style,
         }}
       >
-        {children}
         {/*
-          Mask canvas — starts solid, cells become transparent as wave passes.
+          Children wrapper — in textMode starts at opacity:0 so the text is
+          invisible even when the parent div becomes visible. trigger() sets
+          opacity:1 only after canvas glyph-cells are already painted, so the
+          text is always covered when it first becomes visible. In normal mode
+          the solid canvas fill handles masking, so no opacity trick is needed.
+        */}
+        <div
+          ref={childrenWrapperRef}
+          style={{
+            width: "100%",
+            height: "100%",
+            ...(textMode ? { opacity: 0 } : {}),
+          }}
+        >
+          {children}
+        </div>
+        {/*
+          Mask canvas — in normal mode starts solid, cells become transparent
+          as wave passes.  In textMode only glyph-shaped cells are ever drawn.
           pointerEvents:none keeps revealed content immediately interactive.
         */}
         <canvas

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Pixelify_Sans, Bitcount_Single_Ink } from 'next/font/google';
+import { Pixelify_Sans, Bitcount_Single_Ink, Aldrich } from 'next/font/google';
+import { ThemeProvider } from "./context/ThemeContext";
 
 const bitCountSingleInk = Bitcount_Single_Ink({
   variable: "--font-bitcount-single-ink",
   subsets: ['latin'],
-  weight: ['100', '400', '700', '900'], 
+  weight: ['100', '400', '700', '900'],
 });
-// Configure the font
+
 const pixelySans = Pixelify_Sans({
   subsets: ['latin'],
-  weight: '400', // Pixely Sans usually only has 400
+  weight: '400',
 });
 
 const geistSans = Geist({
@@ -22,6 +23,11 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const aldrich = Aldrich({
+  variable: "--font-aldrich",
+  weight: "400"
 });
 
 export const metadata: Metadata = {
@@ -35,11 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${bitCountSingleInk.variable} antialiased bg-[#1a1a2e] text-white`}
+        className={`${bitCountSingleInk.variable} ${aldrich.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
