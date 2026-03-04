@@ -163,7 +163,7 @@ function ParentCanvas() {
           <Canvas
             camera={{ position: [0, 0, 4], fov: 40 }}
             gl={{ alpha: true }}
-            style={{ background: "transparent", border: "2px solid green" }}
+            style={{ background: "transparent" }}
           >
             <ambientLight intensity={isDark ? 0.25 : 0.9} />
             <directionalLight position={[2, 4, 3]} intensity={0.6} />

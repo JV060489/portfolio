@@ -595,6 +595,7 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
             value: 1,
             duration: durRef.current,
             ease: "none",
+            
             onComplete() {
               activeRef.current = false;
               const c = canvas.getContext("2d");
@@ -636,7 +637,7 @@ const PixelBurstReveal = forwardRef<PixelBurstHandle, PixelBurstRevealProps>(
           style={{
             width: "100%",
             height: "100%",
-            ...(textMode ? { opacity: 0 } : {}),
+            ...(textMode ? { opacity: 1 } : {}),
           }}
         >
           {children}

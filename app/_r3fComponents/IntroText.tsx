@@ -6,6 +6,9 @@ import { OrthographicCamera } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { CustomEase } from "gsap/CustomEase";
+import { is } from "@react-three/fiber/dist/declarations/src/core/utils";
+
+
 
 // Register CustomEase plugin and create a reusable named curve
 gsap.registerPlugin(CustomEase);
@@ -15,7 +18,7 @@ CustomEase.create(
 );
 
 // ── Dev toggle: set to true to skip the intro animation ─────────────────────
-const SKIP_INTRO = true;
+const SKIP_INTRO = false;
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;
@@ -136,8 +139,10 @@ const fragmentShader = /* glsl */ `
   void main() {
     float shadow = dot(normalize(vec3(0.0, 1.0, 1.0)), normalize(vNormal));
     vec3  color  = clamp(vColor * (0.9 + 0.6 * shadow), 0.0, 1.0);
-    // Flip cube color for light mode (uInvert = 1.0) — dark cubes on white bg
-    color = mix(color, vec3(1.0) - color, uInvert);
+    // In light mode, invert so text is black with preserved depth shading
+    if (uInvert > 0.5) {
+      color = vec3(1.0) - color;
+    }
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -331,7 +336,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
           uGridOffsetEnd: { value: 5 }, // larger Z offset for visible pop-out
           uTexture: { value: texture },
           uDitherProgress: { value: 0.04 },
-          uInvert: { value: 0.0 },
+          uInvert: { value: isDark ? 0.0 : 1.0 },
         },
       });
       materialRef.current = material;
@@ -396,7 +401,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
           material.uniforms.uDitherProgress,
           {
             value: 1,
-            duration: 6,
+            duration: 4,
             ease: "none",
           },
           0,
@@ -407,7 +412,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
           cam,
           {
             zoom: 2.5,
-            duration: 8,
+            duration: 6,
             ease: "introZoom",
             onUpdate: () => cam.updateProjectionMatrix(),
           },

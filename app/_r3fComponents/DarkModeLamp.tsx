@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { useSpring, animated } from "@react-spring/three";
 import * as THREE from "three";
 import { EffectComposer, Bloom, GodRays } from "@react-three/postprocessing";
-import Godrays from "./Godrays";
 
 interface DarkModeLampProps {
   isDark: boolean;
@@ -54,6 +53,12 @@ export default function DarkModeLamp({ isDark, onToggle }: DarkModeLampProps) {
         onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "auto")}
       >
+        {/* ── Invisible click target covering the whole lamp ──── */}
+        <mesh position={[0, 0.5, 0]} visible={false}>
+          <cylinderGeometry args={[0.75, 0.75, 3, 16]} />
+          <meshBasicMaterial />
+        </mesh>
+
         {/* ── Hanging rod ─────────────────────────────────────── */}
         <mesh position={[0, 1.55, 0]}>
           <cylinderGeometry args={[0.018, 0.018, 2.2, 8]} />
@@ -94,9 +99,6 @@ export default function DarkModeLamp({ isDark, onToggle }: DarkModeLampProps) {
         </mesh>
 
         {/* ── Visible light-beam cone pointing downward ────────── */}
-        {isDark && (
-          <Godrays position={[0, -1.8, 0]} />
-        )}
 
         {/* ── Point light emitted by bulb ───────────────────────── */}
         <pointLight
@@ -109,16 +111,16 @@ export default function DarkModeLamp({ isDark, onToggle }: DarkModeLampProps) {
       </animated.group>
 
       {/* ── Soft halo bloom around the bulb ──────────────────── */}
-      {/* {isDark && (
+      {isDark && (
         <EffectComposer>
           <Bloom
             luminanceThreshold={0.6}
-            luminanceSmoothing={3}
+            luminanceSmoothing={5}
             intensity={3}
             mipmapBlur
           />
         </EffectComposer>
-      )} */}
+      )}
     </>
   );
 }
