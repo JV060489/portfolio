@@ -4,12 +4,143 @@ import { Canvas } from "@react-three/fiber";
 import { useState, useRef, useEffect } from "react";
 import IntroText from "./IntroText";
 import PixelBurstReveal, { type PixelBurstHandle } from "./PixelBurst";
-import DarkModeLamp from "./DarkModeLamp";
+import DarkModeLamp from "./_unused/DarkModeLamp";
 import ThemeTransitionOverlay, {
   type ThemeTransitionHandle,
 } from "./_unused/ThemeTransitionOverlay";
 import { useTheme } from "@/app/context/ThemeContext";
 import { cn } from "@/utils/utils";
+import { useThree } from "@react-three/fiber";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { SplitText } from "gsap/SplitText";
+import { Model } from "@/public/Test_py.jsx";
+
+gsap.registerPlugin(SplitText);
+
+// ── Typewriter component ──────────────────────────────────────────────────────
+interface TypewriterLineProps {
+  text: string;
+  delay?: number; // seconds before this line starts typing
+  color: string;
+  fontFamily?: string;
+  onComplete?: () => void;
+}
+
+function TypewriterLine({
+  text,
+  delay = 0,
+  color,
+  fontFamily,
+  onComplete,
+}: TypewriterLineProps) {
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
+
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const container = containerRef.current;
+    const cursor = cursorRef.current;
+    if (!container || !cursor || !wrapper) return;
+
+    const split = new SplitText(container, { type: "chars" });
+    const chars = split.chars;
+
+    const moveCursorAfter = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const wr = wrapper.getBoundingClientRect();
+      cursor.style.left = `${r.right - wr.left}px`;
+      cursor.style.top = `${r.top - wr.top}px`;
+    };
+
+    // Initial cursor position: start of text (before first char)
+    const firstRect = chars[0]?.getBoundingClientRect();
+    const wr = wrapper.getBoundingClientRect();
+    if (firstRect) {
+      cursor.style.left = `${firstRect.left - wr.left}px`;
+      cursor.style.top = `${firstRect.top - wr.top}px`;
+    }
+
+    container.style.visibility = "visible";
+    gsap.set(chars, { autoAlpha: 0 });
+    gsap.set(cursor, { autoAlpha: 0 });
+
+    const typeTl = gsap.timeline({ delay });
+
+    // Show cursor and start blinking only after the delay
+    const blinkTl = gsap.timeline({ repeat: -1, paused: true });
+    blinkTl
+      .to(cursor, { autoAlpha: 0, duration: 0.4, ease: "none" })
+      .to(cursor, { autoAlpha: 1, duration: 0.4, ease: "none" });
+
+    typeTl.set(cursor, { autoAlpha: 1 });
+    typeTl.add(() => {
+      blinkTl.play();
+    });
+
+    typeTl.to(chars, {
+      autoAlpha: 1,
+      duration: 0.001,
+      stagger: {
+        amount: chars.length * 0.07,
+        onStart() {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const char = (this as any).targets()[0] as Element;
+          moveCursorAfter(char);
+        },
+      },
+      ease: "none",
+      onComplete: () => {
+        blinkTl.kill();
+        gsap.set(cursor, { autoAlpha: 0 });
+        onCompleteRef.current?.();
+      },
+    });
+
+    return () => {
+      typeTl.kill();
+      blinkTl.kill();
+      split.revert();
+    };
+  }, [text, delay]); // onComplete intentionally excluded — accessed via ref
+
+  return (
+    <span
+      ref={wrapperRef}
+      style={{
+        position: "relative",
+        display: "inline-block",
+        fontFamily,
+        color,
+      }}
+    >
+      <div
+        ref={containerRef}
+        style={{ display: "inline", visibility: "hidden" }}
+      >
+        {text}
+      </div>
+      {/* Blinking white cursor — absolutely positioned, follows last typed char */}
+      <span
+        ref={cursorRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          display: "inline-block",
+          width: "3px",
+          height: "1em",
+          background: "#ffffff",
+          opacity: 0,
+        }}
+      />
+    </span>
+  );
+}
 
 /**
  * Approximate Y-fraction of the bulb within the lamp Canvas div.
@@ -23,12 +154,81 @@ function ParentCanvas() {
   const isDark = theme === "dark";
 
   const [introComplete, setIntroComplete] = useState(false);
+  const [firstLineDone, setFirstLineDone] = useState(false);
+  const [secondLineDone, setSecondLineDone] = useState(false);
   const [lampVisible, setLampVisible] = useState(false);
 
   const burstRef = useRef<PixelBurstHandle>(null);
   const burstRef2 = useRef<PixelBurstHandle>(null);
   const transitionRef = useRef<ThemeTransitionHandle>(null);
   const lampDivRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<SVGSVGElement>(null);
+
+  // Scroll arrow: fade+slide in, blink twice every 5s, stop on scroll
+  useEffect(() => {
+    if (!secondLineDone) return;
+    const arrow = arrowRef.current;
+    if (!arrow) return;
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let scrolled = false;
+
+    const blink = () => {
+      if (scrolled) return;
+      gsap
+        .timeline()
+        .to(arrow, { autoAlpha: 0, y: 6, duration: 0.18, ease: "back.in(1.5)" })
+        .to(arrow, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.18,
+          ease: "back.out(1.5)",
+        })
+        .to(arrow, { autoAlpha: 0, y: 6, duration: 0.18, ease: "back.in(1.5)" })
+        .to(arrow, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.18,
+          ease: "back.out(1.5)",
+        });
+    };
+
+    // Fade + slide in from below, then after 5s start blink cycle
+    gsap.fromTo(
+      arrow,
+      { autoAlpha: 0, y: 16 },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.6,
+        ease: "back.out(1.7)",
+        onComplete: () => {
+          // First blink at 5s, then every 5s
+          const firstId = setTimeout(() => {
+            blink();
+            intervalId = setInterval(blink, 5000);
+          }, 5000);
+
+          const onScroll = () => {
+            scrolled = true;
+            clearTimeout(firstId);
+            if (intervalId) clearInterval(intervalId);
+            gsap.to(arrow, {
+              autoAlpha: 0,
+              y: 8,
+              duration: 0.4,
+              ease: "back.in(1.5)",
+            });
+          };
+          window.addEventListener("scroll", onScroll, { once: true });
+        },
+      },
+    );
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [secondLineDone]);
 
   useEffect(() => {
     if (!introComplete) return;
@@ -93,86 +293,64 @@ function ParentCanvas() {
       </Canvas>
 
       {/* "Hi, I'm" label */}
-      <div
-        className={cn(
-          "pointer-events-none absolute left-[8%] top-[33%] z-20 user-select-none",
-          introComplete ? "" : "hidden",
-        )}
-      >
-        <PixelBurstReveal
-          ref={burstRef}
-          origin="top-left"
-          coverColor={coverColor}
-          pixelColor={pixelColor}
-          duration={2.0}
-          textMode
-          maskText="Hi, I'm"
-          maskFont="400 30px Aldrich"
-          maskLetterSpacing="1.2px"
-          maskOffsetX={9}
-        >
+      {introComplete && (
+        <div className="pointer-events-none absolute left-[35%] top-[26%] z-20 lg:top-[34%] lg:left-[9%]">
           <span
             className={cn(
-              "block text-3xl font-normal whitespace-nowrap",
+              "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
               "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none",
             )}
-            style={{ fontFamily: "var(--font-aldrich)", color: textColor }}
           >
-            Hi, I&apos;m
+            <TypewriterLine
+              text="Hi, I'm"
+              delay={0.3}
+              color={textColor}
+              fontFamily="var(--font-aldrich)"
+              onComplete={() => setFirstLineDone(true)}
+            />
           </span>
-        </PixelBurstReveal>
-      </div>
-
-      {/* "3D Web Developer" label — centred horizontally */}
-      <div
-        className={cn(
-          "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[55%] z-20 select-none",
-          introComplete ? "" : "hidden",
-        )}
-      >
-        <PixelBurstReveal
-          ref={burstRef2}
-          origin="center"
-          coverColor={coverColor}
-          pixelColor={pixelColor}
-          duration={2.0}
-          textMode
-          maskText="3D Web Developer"
-          maskFont="400 30px Aldrich"
-          maskLetterSpacing="1.2px"
-          maskOffsetX={9}
-        >
-          <span
-            className={cn(
-              "block text-3xl font-normal whitespace-nowrap",
-              "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none",
-            )}
-            style={{ fontFamily: "var(--font-aldrich)", color: textColor }}
-          >
-            3D Web Developer
-          </span>
-        </PixelBurstReveal>
-      </div>
-
-      {/* Lamp: springs in from top-center after bursts complete */}
-      {lampVisible && (
-        <div
-          ref={lampDivRef}
-          className="absolute left-1/2 -translate-x-1/2 top-0 z-30 w-96 h-70 pointer-events-auto"
-        >
-          <Canvas
-            camera={{ position: [0, 0, 4], fov: 40 }}
-            gl={{ alpha: true }}
-            style={{ background: "transparent" }}
-          >
-            <ambientLight intensity={isDark ? 0.25 : 0.9} />
-            <directionalLight position={[2, 4, 3]} intensity={0.6} />
-            <DarkModeLamp isDark={isDark} onToggle={handleLampToggle} />
-          </Canvas>
         </div>
       )}
 
-      
+      {/* "3D Web Developer" label — centred horizontally */}
+      {introComplete && firstLineDone && (
+        <div
+          className={cn(
+            "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-20 select-none lg:top-[55%]",
+          )}
+        >
+          <span
+            className={cn(
+              "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
+              "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none",
+            )}
+          >
+            <TypewriterLine
+              text="3D Web Developer"
+              delay={1}
+              color={textColor}
+              fontFamily="var(--font-aldrich)"
+              onComplete={() => setSecondLineDone(true)}
+            />
+          </span>
+        </div>
+      )}
+      {/* Scroll arrow — bottom center, hidden until second line finishes */}
+      <svg
+        ref={arrowRef}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute left-1/2 bottom-48 h-10 w-10 -translate-x-1/2 opacity-0 z-20 lg:bottom-8"
+      >
+        <path
+          d="M17 9.5L12 14.5L7 9.5"
+          stroke="#ffffff"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }

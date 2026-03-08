@@ -2,13 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
-import { OrthographicCamera } from "@react-three/drei";
+import { OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { CustomEase } from "gsap/CustomEase";
-import { is } from "@react-three/fiber/dist/declarations/src/core/utils";
-
-
 
 // Register CustomEase plugin and create a reusable named curve
 gsap.registerPlugin(CustomEase);
@@ -26,6 +23,9 @@ const COLUMNS = 320;
 const SPACING = 1;
 const BOUNDING_BOX = 400;
 const HOVER_RADIUS = 5; // cells around the cursor that get triggered
+const MOBILE_BREAKPOINT = 768;
+const MOBILE_TEXT_SCALE = 0.6;
+const MOBILE_Y_OFFSET_PX = 100;
 
 // ── Bayer 4×4 threshold map ──────────────────────────────────────────────────
 const BAYER_4X4_DATA = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -149,9 +149,10 @@ const fragmentShader = /* glsl */ `
 
 // ── Text → canvas texture + CPU pixel mask ──────────────────────────────────
 async function createTextTexture(
-  text: string,
+  lines: string[],
   cols: number,
   rows: number,
+  fontScale = 1,
 ): Promise<{ texture: THREE.CanvasTexture; mask: Uint8Array }> {
   // Ensure Pixelify Sans is loaded before drawing
   await document.fonts.load(`400 40px "Pixelify Sans"`);
@@ -165,21 +166,37 @@ async function createTextTexture(
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, cols, rows);
 
-  // Find the largest font size that fits within 90% of the canvas width
+  const safeLines = lines.length > 0 ? lines : [""];
+
+  // Find the largest font size that fits within the canvas bounds.
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  let fontSize = Math.floor(rows * 0.7);
-  ctx.font = `400 ${fontSize}px "Pixelify Sans", monospace`;
   const targetW = cols * 0.9;
-  const measured = ctx.measureText(text).width;
-  if (measured > 0) {
-    fontSize = Math.floor(fontSize * (targetW / measured));
-  }
-  ctx.font = `400 ${fontSize}px "Pixelify Sans", monospace`;
+  const targetH = rows * 0.8;
+  let fontSize = Math.floor(rows * 0.72);
+  let lineHeight = fontSize * 1.08;
 
-  // White text
+  while (fontSize > 1) {
+    ctx.font = `400 ${fontSize}px "Pixelify Sans", monospace`;
+    const maxWidth = Math.max(
+      ...safeLines.map((line) => ctx.measureText(line).width),
+    );
+    lineHeight = fontSize * 1.08;
+    const totalHeight = lineHeight * safeLines.length;
+    if (maxWidth <= targetW && totalHeight <= targetH) break;
+    fontSize -= 1;
+  }
+
+  fontSize = Math.max(1, Math.floor(fontSize * fontScale));
+  ctx.font = `400 ${fontSize}px "Pixelify Sans", monospace`;
+  lineHeight = fontSize * 1.08;
+
+  // White text (single or multi-line), vertically centered as a block.
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(text, cols / 2, rows / 2);
+  const firstLineY = rows / 2 - ((safeLines.length - 1) * lineHeight) / 2;
+  safeLines.forEach((line, index) => {
+    ctx.fillText(line, cols / 2, firstLineY + index * lineHeight);
+  });
 
   const texture = new THREE.CanvasTexture(canvas);
 
@@ -207,7 +224,10 @@ interface IntroTextProps {
   isDark?: boolean;
 }
 
-export default function IntroText({ onIntroComplete, isDark = true }: IntroTextProps) {
+export default function IntroText({
+  onIntroComplete,
+  isDark = true,
+}: IntroTextProps) {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const anchorRef = useRef<THREE.Object3D>(new THREE.Object3D()); // virtual anchor
   const camLocalPos = useRef(new THREE.Vector3(0, 0, 1000));
@@ -215,12 +235,14 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
   // Keep a stable ref so the GSAP timeline always calls the latest callback
   // without needing to be listed as a useEffect dependency.
   const onIntroCompleteRef = useRef(onIntroComplete);
+  const isDarkRef = useRef(isDark);
   useEffect(() => {
     onIntroCompleteRef.current = onIntroComplete;
   }, [onIntroComplete]);
 
   // ── Hover-related refs ───────────────────────────────────────────────────
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const groupRef = useRef<THREE.Group | null>(null);
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
   const textMaskRef = useRef<Uint8Array | null>(null); // 1 = text cell
   const zHoverRef = useRef<Float32Array | null>(null); // per-cell hover Z
@@ -232,6 +254,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
   const pointerActiveRef = useRef(false);
 
   const { scene, size, raycaster, pointer, gl } = useThree();
+  const isMobileLayout = size.width <= MOBILE_BREAKPOINT;
 
   // ── Track real pointer presence on the canvas ──────────────────────────────
   useEffect(() => {
@@ -280,7 +303,14 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
     let geometry: THREE.BoxGeometry | null = null;
     let material: THREE.ShaderMaterial | null = null;
     let texture: THREE.CanvasTexture | null = null;
+    let disposed = false;
     const animating = animatingRef.current; // stable Set reference for cleanup
+    const textLines = isMobileLayout
+      ? ["JANARTHANAN", "VASANTH"]
+      : ["JANARTHANAN VASANTH"];
+    const introConfig = isMobileLayout
+      ? { ditherDuration: 4.5, zoomDuration: 5.5, targetZoom: 3.2, initialZoom: 40 }
+      : { ditherDuration: 5, zoomDuration: 6, targetZoom: 2.5, initialZoom: 70 };
 
     const count = ROWS * COLUMNS;
 
@@ -318,10 +348,15 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
     // Text texture (async — waits for Pixelify Sans to be ready)
     const buildScene = async () => {
       const { texture: tex, mask } = await createTextTexture(
-        "JANARTHANAN VASANTH",
+        textLines,
         COLUMNS,
         ROWS,
+        isMobileLayout ? MOBILE_TEXT_SCALE : 1,
       );
+      if (disposed) {
+        tex.dispose();
+        return;
+      }
       texture = tex;
       textMaskRef.current = mask;
 
@@ -336,7 +371,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
           uGridOffsetEnd: { value: 5 }, // larger Z offset for visible pop-out
           uTexture: { value: texture },
           uDitherProgress: { value: 0.04 },
-          uInvert: { value: isDark ? 0.0 : 1.0 },
+          uInvert: { value: isDarkRef.current ? 0.0 : 1.0 },
         },
       });
       materialRef.current = material;
@@ -365,6 +400,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
       group = new THREE.Group();
       group.add(mesh);
       scene.add(group);
+      groupRef.current = group;
 
       // ── Virtual camera anchor (drives camera position/orientation) ────────────
       const anchor = anchorRef.current;
@@ -376,14 +412,14 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
       anchor.position.set(0, 0, 0);
 
       // Set initial camera zoom
-      cam.zoom = 70;
+      cam.zoom = introConfig.initialZoom;
       cam.updateProjectionMatrix();
 
       // ── GSAP timeline ─────────────────────────────────────────────────────────
       if (SKIP_INTRO) {
         // Jump straight to the post-animation state
         material.uniforms.uDitherProgress.value = 1;
-        cam.zoom = 2.5;
+        cam.zoom = introConfig.targetZoom;
         cam.updateProjectionMatrix();
         animDoneRef.current = true;
         // Notify parent on next tick so React commit phase is done
@@ -396,23 +432,23 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
           },
         });
 
-        // Dither reveal: 10 s, linear
+        // Dither reveal
         tl.to(
           material.uniforms.uDitherProgress,
           {
             value: 1,
-            duration: 4,
+            duration: introConfig.ditherDuration,
             ease: "none",
           },
           0,
         );
 
-        // Camera: settle closer — zoom lands at 2.5 (text fills the screen)
+        // Camera zoom target is tuned per breakpoint for balanced framing.
         tl.to(
           cam,
           {
-            zoom: 2.5,
-            duration: 6,
+            zoom: introConfig.targetZoom,
+            duration: introConfig.zoomDuration,
             ease: "introZoom",
             onUpdate: () => cam.updateProjectionMatrix(),
           },
@@ -427,6 +463,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
 
     // Cleanup
     return () => {
+      disposed = true;
       tl?.kill();
       if (group) scene.remove(group);
       mesh?.dispose();
@@ -435,12 +472,13 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
       texture?.dispose();
       // Reset hover state
       meshRef.current = null;
+      groupRef.current = null;
       textMaskRef.current = null;
       zHoverRef.current = null;
       animating.clear();
       animDoneRef.current = false;
     };
-  }, [scene]);
+  }, [scene, isMobileLayout]);
 
   // ── Per-cell hover trigger (fires once per instance on first intersect) ──────
   const triggerHover = (id: number, staggerDelay = 0) => {
@@ -476,6 +514,7 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
 
   // ── Sync isDark → uInvert uniform whenever theme changes ─────────────────
   useEffect(() => {
+    isDarkRef.current = isDark;
     if (materialRef.current) {
       materialRef.current.uniforms.uInvert.value = isDark ? 0.0 : 1.0;
     }
@@ -486,6 +525,17 @@ export default function IntroText({ onIntroComplete, isDark = true }: IntroTextP
     const cam = cameraRef.current;
     const anchor = anchorRef.current;
     if (!cam) return;
+
+    const group = groupRef.current;
+    if (group) {
+      if (isMobileLayout) {
+        // Convert 20 screen pixels to world-units so the offset stays consistent.
+        const viewHeight = (cam.top - cam.bottom) / cam.zoom;
+        group.position.y = (MOBILE_Y_OFFSET_PX * viewHeight) / size.height;
+      } else {
+        group.position.y = 0;
+      }
+    }
 
     // Camera: derive world position from virtual anchor
     anchor.updateMatrixWorld(true);

@@ -5,7 +5,7 @@ import { OrbitControls } from "@react-three/drei";
 import { useRef, useMemo, useEffect } from "react";
 import gsap from "gsap";
 import * as THREE from "three";
-import PixelBurstReveal, { PixelBurstHandle } from "./PixelBurst";
+import PixelBurstReveal, { PixelBurstHandle } from "../PixelBurst";
 
 // Color palette for easy changing
 const COLORS = {
