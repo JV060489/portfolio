@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Pixelify_Sans, Bitcount_Single_Ink, Aldrich } from 'next/font/google';
+import { Pixelify_Sans, Bitcount_Single_Ink, Aldrich, Bowlby_One } from 'next/font/google';
 import { ThemeProvider } from "./context/ThemeContext";
 
 const bitCountSingleInk = Bitcount_Single_Ink({
   variable: "--font-bitcount-single-ink",
   subsets: ['latin'],
   weight: ['100', '400', '700', '900'],
+});
+const bowlbyOne = Bowlby_One({
+  variable: "--font-bowlby-one",
+  subsets: ['latin'],
+  weight: '400',
 });
 
 const pixelySans = Pixelify_Sans({

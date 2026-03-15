@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
-import { OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
+import { OrthographicCamera } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { CustomEase } from "gsap/CustomEase";
@@ -19,10 +19,10 @@ const SKIP_INTRO = false;
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;
-const COLUMNS = 320;
-const SPACING = 1;
+const COLUMNS = 400;
+const SPACING = 0.5;
 const BOUNDING_BOX = 400;
-const HOVER_RADIUS = 5; // cells around the cursor that get triggered
+const HOVER_RADIUS = 10; // cells around the cursor that get triggered
 const MOBILE_BREAKPOINT = 768;
 const MOBILE_TEXT_SCALE = 0.6;
 const MOBILE_Y_OFFSET_PX = 100;
@@ -139,10 +139,6 @@ const fragmentShader = /* glsl */ `
   void main() {
     float shadow = dot(normalize(vec3(0.0, 1.0, 1.0)), normalize(vNormal));
     vec3  color  = clamp(vColor * (0.9 + 0.6 * shadow), 0.0, 1.0);
-    // In light mode, invert so text is black with preserved depth shading
-    if (uInvert > 0.5) {
-      color = vec3(1.0) - color;
-    }
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -220,11 +216,13 @@ async function createTextTexture(
 
 // ── Component ────────────────────────────────────────────────────────────────
 interface IntroTextProps {
+  onIntroStart?: () => void;
   onIntroComplete?: () => void;
   isDark?: boolean;
 }
 
 export default function IntroText({
+  onIntroStart,
   onIntroComplete,
   isDark = true,
 }: IntroTextProps) {
@@ -234,8 +232,12 @@ export default function IntroText({
 
   // Keep a stable ref so the GSAP timeline always calls the latest callback
   // without needing to be listed as a useEffect dependency.
+  const onIntroStartRef = useRef(onIntroStart);
   const onIntroCompleteRef = useRef(onIntroComplete);
   const isDarkRef = useRef(isDark);
+  useEffect(() => {
+    onIntroStartRef.current = onIntroStart;
+  }, [onIntroStart]);
   useEffect(() => {
     onIntroCompleteRef.current = onIntroComplete;
   }, [onIntroComplete]);
@@ -252,9 +254,10 @@ export default function IntroText({
   // Only true after a real pointermove fires — prevents the default (0,0)
   // pointer position from triggering hover on the center cells at anim end.
   const pointerActiveRef = useRef(false);
+  const introLayoutIsMobileRef = useRef<boolean | null>(null);
 
   const { scene, size, raycaster, pointer, gl } = useThree();
-  const isMobileLayout = size.width <= MOBILE_BREAKPOINT;
+  const isMobileViewport = size.width <= MOBILE_BREAKPOINT;
 
   // ── Track real pointer presence on the canvas ──────────────────────────────
   useEffect(() => {
@@ -297,6 +300,13 @@ export default function IntroText({
     const cam = cameraRef.current;
     if (!cam || typeof window === "undefined") return;
 
+    // Lock intro layout on first mount so breakpoint changes on resize
+    // never rebuild the scene or replay the intro timeline.
+    if (introLayoutIsMobileRef.current === null) {
+      introLayoutIsMobileRef.current = window.innerWidth <= MOBILE_BREAKPOINT;
+    }
+    const introLayoutIsMobile = introLayoutIsMobileRef.current;
+
     let tl: gsap.core.Timeline | null = null;
     let group: THREE.Group | null = null;
     let mesh: THREE.InstancedMesh | null = null;
@@ -305,12 +315,22 @@ export default function IntroText({
     let texture: THREE.CanvasTexture | null = null;
     let disposed = false;
     const animating = animatingRef.current; // stable Set reference for cleanup
-    const textLines = isMobileLayout
+    const textLines = introLayoutIsMobile
       ? ["JANARTHANAN", "VASANTH"]
       : ["JANARTHANAN VASANTH"];
-    const introConfig = isMobileLayout
-      ? { ditherDuration: 4.5, zoomDuration: 5.5, targetZoom: 3.2, initialZoom: 40 }
-      : { ditherDuration: 5, zoomDuration: 6, targetZoom: 2.5, initialZoom: 70 };
+    const introConfig = introLayoutIsMobile
+      ? {
+          ditherDuration: 4.5,
+          zoomDuration: 5.5,
+          targetZoom: 3.2,
+          initialZoom: 40,
+        }
+      : {
+          ditherDuration: 5,
+          zoomDuration: 6,
+          targetZoom: 2.5,
+          initialZoom: 70,
+        };
 
     const count = ROWS * COLUMNS;
 
@@ -351,7 +371,7 @@ export default function IntroText({
         textLines,
         COLUMNS,
         ROWS,
-        isMobileLayout ? MOBILE_TEXT_SCALE : 1,
+        introLayoutIsMobile ? MOBILE_TEXT_SCALE : 1,
       );
       if (disposed) {
         tex.dispose();
@@ -396,6 +416,7 @@ export default function IntroText({
       meshRef.current = mesh;
       zHoverRef.current = new Float32Array(count); // all zeros
       animDoneRef.current = false;
+      onIntroStartRef.current?.();
 
       group = new THREE.Group();
       group.add(mesh);
@@ -478,7 +499,7 @@ export default function IntroText({
       animating.clear();
       animDoneRef.current = false;
     };
-  }, [scene, isMobileLayout]);
+  }, [scene]);
 
   // ── Per-cell hover trigger (fires once per instance on first intersect) ──────
   const triggerHover = (id: number, staggerDelay = 0) => {
@@ -528,7 +549,7 @@ export default function IntroText({
 
     const group = groupRef.current;
     if (group) {
-      if (isMobileLayout) {
+      if (isMobileViewport) {
         // Convert 20 screen pixels to world-units so the offset stays consistent.
         const viewHeight = (cam.top - cam.bottom) / cam.zoom;
         group.position.y = (MOBILE_Y_OFFSET_PX * viewHeight) / size.height;

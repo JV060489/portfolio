@@ -12,7 +12,35 @@
   --canvas-bg: #ffffff;
 }
 
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   background: var(--bg, #000000);
   color: var(--fg, #ffffff);
+}
+
+@theme {
+  --font-title: var(--font-aldrich);
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
 }

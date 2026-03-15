@@ -3,18 +3,18 @@
 import { Canvas } from "@react-three/fiber";
 import { useState, useRef, useEffect } from "react";
 import IntroText from "./IntroText";
-import PixelBurstReveal, { type PixelBurstHandle } from "./PixelBurst";
-import DarkModeLamp from "./_unused/DarkModeLamp";
-import ThemeTransitionOverlay, {
-  type ThemeTransitionHandle,
-} from "./_unused/ThemeTransitionOverlay";
+import { type PixelBurstHandle } from "./PixelBurst";
+
+import { type ThemeTransitionHandle } from "./_unused/ThemeTransitionOverlay";
 import { useTheme } from "@/app/context/ThemeContext";
 import { cn } from "@/utils/utils";
-import { useThree } from "@react-three/fiber";
-import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
-import { Model } from "@/public/Test_py.jsx";
+import AboutMe from "./AboutMe";
+import Lenis from "lenis";
+import HiImText from "./HiImText";
+import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
 
 gsap.registerPlugin(SplitText);
 
@@ -163,6 +163,51 @@ function ParentCanvas() {
   const transitionRef = useRef<ThemeTransitionHandle>(null);
   const lampDivRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<SVGSVGElement>(null);
+  const lenisRef = useRef<Lenis | null>(null);
+  const lenisRafRef = useRef<number | null>(null);
+
+  // Global smooth scrolling instance
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.1,
+      smoothWheel: true,
+    });
+
+    lenisRef.current = lenis;
+
+    // Intro starts locked; keep Lenis paused until the second line finishes.
+    lenis.stop();
+    lenis.scrollTo(0, { immediate: true });
+
+    const onFrame = (time: number) => {
+      lenis.raf(time);
+      lenisRafRef.current = window.requestAnimationFrame(onFrame);
+    };
+
+    lenisRafRef.current = window.requestAnimationFrame(onFrame);
+
+    return () => {
+      if (lenisRafRef.current !== null) {
+        window.cancelAnimationFrame(lenisRafRef.current);
+      }
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
+
+  // Keep Lenis in sync with intro lock state.
+  useEffect(() => {
+    const lenis = lenisRef.current;
+    if (!lenis) return;
+
+    if (!secondLineDone) {
+      lenis.stop();
+      lenis.scrollTo(0, { immediate: true });
+      return;
+    }
+
+    lenis.start();
+  }, [secondLineDone]);
 
   // Scroll arrow: fade+slide in, blink twice every 5s, stop on scroll
   useEffect(() => {
@@ -170,12 +215,28 @@ function ParentCanvas() {
     const arrow = arrowRef.current;
     if (!arrow) return;
 
+    let firstBlinkTimeout: ReturnType<typeof setTimeout> | null = null;
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    let scrolled = false;
+    let isArrowVisible = false;
+    let activeBlinkTl: gsap.core.Timeline | null = null;
+
+    const clearBlinkTimers = () => {
+      if (firstBlinkTimeout) {
+        clearTimeout(firstBlinkTimeout);
+        firstBlinkTimeout = null;
+      }
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      activeBlinkTl?.kill();
+      activeBlinkTl = null;
+    };
 
     const blink = () => {
-      if (scrolled) return;
-      gsap
+      if (!isArrowVisible) return;
+      activeBlinkTl?.kill();
+      activeBlinkTl = gsap
         .timeline()
         .to(arrow, { autoAlpha: 0, y: 6, duration: 0.18, ease: "back.in(1.5)" })
         .to(arrow, {
@@ -193,40 +254,62 @@ function ParentCanvas() {
         });
     };
 
-    // Fade + slide in from below, then after 5s start blink cycle
-    gsap.fromTo(
-      arrow,
-      { autoAlpha: 0, y: 16 },
-      {
-        autoAlpha: 1,
-        y: 0,
-        duration: 0.6,
-        ease: "back.out(1.7)",
-        onComplete: () => {
-          // First blink at 5s, then every 5s
-          const firstId = setTimeout(() => {
-            blink();
-            intervalId = setInterval(blink, 5000);
-          }, 5000);
+    const startBlinkCycle = () => {
+      clearBlinkTimers();
+      firstBlinkTimeout = setTimeout(() => {
+        blink();
+        intervalId = setInterval(blink, 5000);
+      }, 5000);
+    };
 
-          const onScroll = () => {
-            scrolled = true;
-            clearTimeout(firstId);
-            if (intervalId) clearInterval(intervalId);
-            gsap.to(arrow, {
-              autoAlpha: 0,
-              y: 8,
-              duration: 0.4,
-              ease: "back.in(1.5)",
-            });
-          };
-          window.addEventListener("scroll", onScroll, { once: true });
+    const showArrow = () => {
+      if (isArrowVisible) return;
+      isArrowVisible = true;
+      gsap.killTweensOf(arrow);
+      gsap.fromTo(
+        arrow,
+        { autoAlpha: 0, y: 16 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "back.out(1.7)",
         },
-      },
-    );
+      );
+      startBlinkCycle();
+    };
+
+    const hideArrow = () => {
+      if (!isArrowVisible) return;
+      isArrowVisible = false;
+      clearBlinkTimers();
+      gsap.killTweensOf(arrow);
+      gsap.to(arrow, {
+        autoAlpha: 0,
+        y: 8,
+        duration: 0.4,
+        ease: "back.in(1.5)",
+      });
+    };
+
+    const onScrollOrResize = () => {
+      const atTop = window.scrollY <= 0;
+      if (atTop) {
+        showArrow();
+      } else {
+        hideArrow();
+      }
+    };
+
+    onScrollOrResize();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      clearBlinkTimers();
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      gsap.killTweensOf(arrow);
     };
   }, [secondLineDone]);
 
@@ -239,6 +322,14 @@ function ParentCanvas() {
     ids.push(setTimeout(() => setLampVisible(true), 4500));
     return () => ids.forEach(clearTimeout);
   }, [introComplete]);
+
+  // Keep scroll position at top during intro (Lenis .lenis-stopped class handles overflow lock).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!secondLineDone) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [secondLineDone]);
 
   /**
    * Called when the user clicks the lamp bulb.
@@ -279,52 +370,69 @@ function ParentCanvas() {
   const pixelColor = isDark ? "#ffffff" : "#000000";
   const textColor = isDark ? "#ffffff" : "#000000";
 
+  const handleIntroStart = () => {
+    setIntroComplete(false);
+    setFirstLineDone(false);
+    setSecondLineDone(false);
+    setLampVisible(false);
+  };
+
+  const handleIntroComplete = () => {
+    setIntroComplete(true);
+  };
+
   return (
     <div className="relative h-screen">
       {/* Main canvas – IntroText owns the camera */}
       <Canvas
         camera={{ manual: true }}
-        style={{ background: canvasBg, width: "100%", height: "100%" }}
+        style={{ background: canvasBg, width: "100%", height: "100%", zIndex: 20 }}
       >
+
+
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[0, 10, 10]} intensity={1} />
         <IntroText
-          onIntroComplete={() => setIntroComplete(true)}
+          onIntroStart={handleIntroStart}
+          onIntroComplete={handleIntroComplete}
           isDark={isDark}
         />
+        <HiImText visible={introComplete} isDark={isDark} showScrollText={secondLineDone} />
+        <EffectComposer>
+          <Bloom
+            intensity={0.1}
+            luminanceThreshold={0.6}
+            luminanceSmoothing={0.4}
+            mipmapBlur
+          />
+          <Noise
+            opacity={0.06}
+            blendFunction={BlendFunction.SOFT_LIGHT}
+          />
+          <Vignette
+            offset={0.3}
+            darkness={0.7}
+            blendFunction={BlendFunction.NORMAL}
+          />
+        </EffectComposer>
       </Canvas>
 
-      {/* "Hi, I'm" label */}
-      {introComplete && (
-        <div className="pointer-events-none absolute left-[35%] top-[26%] z-20 lg:top-[34%] lg:left-[9%]">
-          <span
-            className={cn(
-              "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
-              "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none",
-            )}
-          >
-            <TypewriterLine
-              text="Hi, I'm"
-              delay={0.3}
-              color={textColor}
-              fontFamily="var(--font-aldrich)"
-              onComplete={() => setFirstLineDone(true)}
-            />
-          </span>
-        </div>
-      )}
+      
 
-      {/* "3D Web Developer" label — centred horizontally */}
-      {introComplete && firstLineDone && (
-        <div
+      {/* "3D Web Developer" label — centred horizontally, always mounted */}
+      <div
+        className={cn(
+          "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-50 select-none lg:top-[55%]",
+          introComplete ? "visible" : "invisible",
+        )}
+      >
+        <span
           className={cn(
-            "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-20 select-none lg:top-[55%]",
+            "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
+            "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none ",
           )}
         >
-          <span
-            className={cn(
-              "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
-              "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none",
-            )}
-          >
+          {introComplete && (
             <TypewriterLine
               text="3D Web Developer"
               delay={1}
@@ -332,25 +440,30 @@ function ParentCanvas() {
               fontFamily="var(--font-aldrich)"
               onComplete={() => setSecondLineDone(true)}
             />
-          </span>
-        </div>
-      )}
+          )}
+        </span>
+      </div>
       {/* Scroll arrow — bottom center, hidden until second line finishes */}
-      <svg
-        ref={arrowRef}
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="absolute left-1/2 bottom-48 h-10 w-10 -translate-x-1/2 opacity-0 z-20 lg:bottom-8"
-      >
-        <path
-          d="M17 9.5L12 14.5L7 9.5"
-          stroke="#ffffff"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      {secondLineDone && (
+        <svg
+          ref={arrowRef}
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="absolute left-1/2 bottom-48 h-10 w-10 -translate-x-1/2 opacity-0 z-20 lg:bottom-8"
+        >
+          <path
+            d="M17 9.5L12 14.5L7 9.5"
+            stroke="#ffffff"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {/* About Me section */}
+      
+      <AboutMe shouldAnimate={secondLineDone} />
     </div>
   );
 }
