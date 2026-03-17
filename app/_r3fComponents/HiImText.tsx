@@ -254,7 +254,7 @@ export default function HiImText({ visible, showScrollText = false }: HiImTextPr
           position={SCROLL_TEXT_POSITION}
           material={scrollMaterial}
         >
-          Scroll to discover
+          Scroll down
         </Text>
       )}
     </group>

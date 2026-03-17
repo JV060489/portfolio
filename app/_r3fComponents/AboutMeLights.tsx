@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 // ── Light config type (matches SceneLights format) ───────────────────────────
@@ -118,56 +117,49 @@ const LIGHT_LIGHTS: LightDef[] = [
 
 function TargetedLight({ def }: { def: LightDef }) {
   const lightRef = useRef<THREE.SpotLight | THREE.DirectionalLight>(null);
-  const targetObjRef = useRef(new THREE.Object3D());
-  const { scene } = useThree();
+  const targetRef = useRef<THREE.Object3D>(null);
 
   const pos = def.position ?? [0, 0, 0];
+  const t = def.target ?? [0, 0, 0];
 
-  // Add target Object3D to scene (same as SceneLights)
+  // Assign the target object to the light once both are mounted
   useEffect(() => {
-    const targetObj = targetObjRef.current;
-    scene.add(targetObj);
-    return () => {
-      scene.remove(targetObj);
-    };
-  }, [scene]);
-
-  // Sync target position and assign to light
-  useEffect(() => {
-    const targetObj = targetObjRef.current;
-    const t = def.target ?? [0, 0, 0];
-    targetObj.position.set(t[0], t[1], t[2]);
-    if (lightRef.current) {
-      lightRef.current.target = targetObj;
+    if (lightRef.current && targetRef.current) {
+      lightRef.current.target = targetRef.current;
     }
-  }, [def]);
+  });
 
-  // Mirrors SceneLights: <group position={pos}> <light (at local origin) /> </group>
   if (def.type === "directional") {
     return (
-      <group position={[pos[0], pos[1], pos[2]]}>
-        <directionalLight
-          ref={lightRef as React.RefObject<THREE.DirectionalLight>}
-          color={def.color}
-          intensity={def.intensity}
-          castShadow={def.castShadow ?? false}
-        />
+      <group>
+        <object3D ref={targetRef} position={[t[0], t[1], t[2]]} />
+        <group position={[pos[0], pos[1], pos[2]]}>
+          <directionalLight
+            ref={lightRef as React.RefObject<THREE.DirectionalLight>}
+            color={def.color}
+            intensity={def.intensity}
+            castShadow={def.castShadow ?? false}
+          />
+        </group>
       </group>
     );
   }
 
   return (
-    <group position={[pos[0], pos[1], pos[2]]}>
-      <spotLight
-        ref={lightRef as React.RefObject<THREE.SpotLight>}
-        color={def.color}
-        intensity={def.intensity}
-        angle={def.angle}
-        penumbra={def.penumbra}
-        distance={def.distance}
-        decay={def.decay}
-        castShadow={def.castShadow ?? false}
-      />
+    <group>
+      <object3D ref={targetRef} position={[t[0], t[1], t[2]]} />
+      <group position={[pos[0], pos[1], pos[2]]}>
+        <spotLight
+          ref={lightRef as React.RefObject<THREE.SpotLight>}
+          color={def.color}
+          intensity={def.intensity}
+          angle={def.angle}
+          penumbra={def.penumbra}
+          distance={def.distance}
+          decay={def.decay}
+          castShadow={def.castShadow ?? false}
+        />
+      </group>
     </group>
   );
 }

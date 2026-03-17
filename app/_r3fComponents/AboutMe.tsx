@@ -2,6 +2,7 @@
 
 import {
   useRef,
+  useEffect,
   type ForwardRefExoticComponent,
   type RefAttributes,
 } from "react";
@@ -10,13 +11,19 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { AboutMeModel, Instances } from "@/public/AboutMeModel.jsx";
-import { Canvas, type ThreeElements } from "@react-three/fiber";
+import {
+  Canvas,
+  useFrame,
+  useThree,
+  type ThreeElements,
+} from "@react-three/fiber";
 import {
   Environment,
   OrbitControls,
   PerspectiveCamera,
   Text,
 } from "@react-three/drei";
+import { button, useControls } from "leva";
 import * as THREE from "three";
 import AboutMeLights from "./AboutMeLights";
 import SceneLights from "./SceneLights";
@@ -31,6 +38,123 @@ const AboutMeModelTyped = AboutMeModel as ForwardRefExoticComponent<
 // const DEV_LIGHTS = process.env.NODE_ENV === "development";
 const DEV_LIGHTS = false;
 
+const FLOAT_AMPLITUDE = 0.1;
+const FLOAT_SPEED = 1;
+
+function FloatingModel({
+  children,
+  baseY = -1,
+}: {
+  children: React.ReactNode;
+  baseY?: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    groupRef.current.position.y =
+      baseY + Math.sin(clock.getElapsedTime() * FLOAT_SPEED) * FLOAT_AMPLITUDE;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, baseY, 0]}>
+      {children}
+    </group>
+  );
+}
+
+
+const CAMERA_STORAGE_KEY = "aboutme-camera-setup";
+
+// Plain object to hold controls ref — avoids React compiler ref-in-render lint
+const cameraDebugState: {
+  controls: React.ComponentRef<typeof OrbitControls> | null;
+} = {
+  controls: null,
+};
+
+function CameraDebug() {
+  const { camera } = useThree();
+  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
+
+  useEffect(() => {
+    cameraDebugState.controls = controlsRef.current;
+    return () => {
+      cameraDebugState.controls = null;
+    };
+  });
+
+  useControls("Camera", {
+    "Save Camera": button(() => {
+      const target = cameraDebugState.controls?.target;
+      const data = {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        target: [target?.x ?? 0, target?.y ?? 0, target?.z ?? 0],
+      };
+      localStorage.setItem(CAMERA_STORAGE_KEY, JSON.stringify(data));
+      console.log("Camera saved:", data);
+    }),
+    "Load Camera": button(() => {
+      const raw = localStorage.getItem(CAMERA_STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      console.log("Camera loaded:", data);
+    }),
+    "Log Current": button(() => {
+      const target = cameraDebugState.controls?.target;
+      console.log("Position:", [
+        camera.position.x,
+        camera.position.y,
+        camera.position.z,
+      ]);
+      console.log("Target:", [target?.x ?? 0, target?.y ?? 0, target?.z ?? 0]);
+    }),
+  });
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      makeDefault
+      enableZoom={false}
+      target={[0.03, 1.01, -0.34]}
+    />
+  );
+}
+
+function AboutMeScene({
+  theme,
+}: {
+  theme: "dark" | "light";
+}) {
+  return (
+    <>
+      <PerspectiveCamera
+        makeDefault
+        position={[
+          -0.07542700310537993, 0.8182533429761684, 7.0903515877460865,
+        ]}
+      />
+      {DEV_LIGHTS ? <SceneLights /> : <AboutMeLights mode={theme} />}
+      <FloatingModel baseY={-1}>
+        <Instances scale={1}>
+          <AboutMeModelTyped scale={1.6} position={[0, 0, -2]} />
+        </Instances>
+      </FloatingModel>
+      <Text
+        font="/fonts/Ephesis-Regular.ttf"
+        fontSize={6}
+        anchorX="center"
+        anchorY="middle"
+        position={[0, 5, -15]}
+        color={theme === "dark" ? "#666666" : "#dddddd"}
+      >
+        About Me
+      </Text>
+      {/* <CameraDebug /> */}
+    </>
+  );
+}
+
 interface AboutMeProps {
   shouldAnimate?: boolean;
 }
@@ -40,7 +164,6 @@ function AboutMe({ shouldAnimate = false }: AboutMeProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const sceneGroupRef = useRef<THREE.Group>(null);
 
   useGSAP(
     () => {
@@ -100,31 +223,11 @@ function AboutMe({ shouldAnimate = false }: AboutMeProps) {
         About Me
       </h2> */}
       {/* 3D Model Canvas */}
-      <div className="flex w-full h-screen">
+      <div className="flex w-full h-screen ">
         {/* Left Section: 50% width */}
-        <div className="w-screen h-160">
+        <div className="w-screen h-full">
           <Canvas>
-            <PerspectiveCamera makeDefault position={[0, 2, 8]} />
-            <group ref={sceneGroupRef}>
-              {DEV_LIGHTS ? <SceneLights /> : <AboutMeLights mode={theme} />}
-              <Instances scale={1}>
-                <AboutMeModelTyped
-                  scale={1.6}
-                  position={[0, -1, 0]}
-                />
-              </Instances>
-              <Text
-                font="/fonts/Ephesis-Regular.ttf"
-                fontSize={6}
-                anchorX="center"
-                anchorY="middle"
-                position={[0, 5, -10]}
-                color={theme === "dark" ? "#666666" : "#dddddd"}
-              >
-                About Me
-              </Text>
-            </group>
-            <OrbitControls makeDefault enableZoom={false} />
+            <AboutMeScene theme={theme} />
           </Canvas>
         </div>
 
