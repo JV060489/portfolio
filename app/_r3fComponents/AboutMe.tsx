@@ -26,7 +26,6 @@ import {
 import { button, useControls } from "leva";
 import * as THREE from "three";
 import AboutMeLights from "./AboutMeLights";
-import SceneLights from "./SceneLights";
 import { useTheme } from "@/app/context/ThemeContext";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText);
@@ -35,11 +34,8 @@ const AboutMeModelTyped = AboutMeModel as ForwardRefExoticComponent<
   ThreeElements["group"] & RefAttributes<THREE.Group>
 >;
 
-// const DEV_LIGHTS = process.env.NODE_ENV === "development";
-const DEV_LIGHTS = false;
-
-const FLOAT_AMPLITUDE = 0.1;
-const FLOAT_SPEED = 1;
+const FLOAT_AMPLITUDE = 0.08;
+const FLOAT_SPEED = 0.8;
 
 function FloatingModel({
   children,
@@ -52,14 +48,76 @@ function FloatingModel({
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
+    const t = clock.getElapsedTime();
     groupRef.current.position.y =
-      baseY + Math.sin(clock.getElapsedTime() * FLOAT_SPEED) * FLOAT_AMPLITUDE;
+      baseY + Math.sin(t * FLOAT_SPEED) * FLOAT_AMPLITUDE;
   });
 
   return (
     <group ref={groupRef} position={[0, baseY, 0]}>
       {children}
     </group>
+  );
+}
+
+const CAMERA_POSITION: [number, number, number] = [3.598065155573723, 0.5462456123396201, 2.7901045951631516];
+const CAMERA_TARGET: [number, number, number] = [1.0201418214891476, 0.11689688992812922, -0.7868081410860884];
+
+// How much the camera shifts in world units per normalized mouse unit
+const PARALLAX_STRENGTH = 0.4;
+const PARALLAX_LERP = 0.06;
+
+function ParallaxCamera({
+  mouseRef,
+}: {
+  mouseRef: React.RefObject<{ x: number; y: number }>;
+}) {
+  const get = useThree((s) => s.get);
+  const base = useRef(new THREE.Vector3(...CAMERA_POSITION));
+  const target = useRef(new THREE.Vector3(...CAMERA_TARGET));
+
+  useFrame(() => {
+    const camera = get().camera;
+    const mx = mouseRef.current?.x ?? 0;
+    const my = mouseRef.current?.y ?? 0;
+
+    // Orbit the camera around the target by rotating the offset vector
+    const offset = base.current.clone().sub(target.current);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+
+    spherical.theta -= mx * PARALLAX_STRENGTH * 0.3;
+    spherical.phi -= my * PARALLAX_STRENGTH * 0.15;
+    spherical.phi = THREE.MathUtils.clamp(spherical.phi, 0.5, Math.PI - 0.5);
+
+    const desiredOffset = new THREE.Vector3().setFromSpherical(spherical);
+    const desired = target.current.clone().add(desiredOffset);
+
+    camera.position.x += (desired.x - camera.position.x) * PARALLAX_LERP;
+    camera.position.y += (desired.y - camera.position.y) * PARALLAX_LERP;
+    camera.position.z += (desired.z - camera.position.z) * PARALLAX_LERP;
+    camera.lookAt(target.current);
+  });
+
+  return null;
+}
+
+function AboutMeModelScene({
+  mouseRef,
+}: {
+  mouseRef: React.RefObject<{ x: number; y: number }>;
+}) {
+  return (
+    <>
+      <PerspectiveCamera makeDefault position={CAMERA_POSITION} />
+      <AboutMeLights mode="dark" />
+      <FloatingModel baseY={-1}>
+        <Instances scale={1}>
+          <AboutMeModelTyped scale={1.2} position={[0, 0, -2]} />
+        </Instances>
+      </FloatingModel>
+      <ParallaxCamera mouseRef={mouseRef} />
+      {/* <CameraDebug /> */}
+    </>
   );
 }
 
@@ -115,140 +173,196 @@ function CameraDebug() {
     <OrbitControls
       ref={controlsRef}
       makeDefault
-      enableZoom={false}
-      target={[0.03, 1.01, -0.34]}
+      target={CAMERA_TARGET}
     />
   );
 }
 
-function AboutMeScene({
-  theme,
+// Radius (px) within which a char reacts to the cursor
+const REPULSE_RADIUS = 80;
+// Max displacement in px
+const REPULSE_STRENGTH = 20;
+
+function useCharRepulsion(containerRef: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const chars = Array.from(
+      container.querySelectorAll<HTMLElement>(".repulse-char"),
+    );
+
+    const handleMouseMove = (e: MouseEvent) => {
+      chars.forEach((char) => {
+        const rect = char.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < REPULSE_RADIUS) {
+          const force = (1 - dist / REPULSE_RADIUS) * REPULSE_STRENGTH;
+          // Push away from cursor
+          const offsetX = -(dx / dist) * force;
+          const offsetY = -(dy / dist) * force;
+          gsap.to(char, {
+            x: offsetX,
+            y: offsetY,
+            duration: 0.3,
+            ease: "power2.out",
+            overwrite: "auto",
+          });
+        } else {
+          gsap.to(char, {
+            x: 0,
+            y: 0,
+            duration: 0.6,
+            ease: "elastic.out(1, 0.4)",
+            overwrite: "auto",
+          });
+        }
+      });
+    };
+
+    const handleMouseLeave = () => {
+      chars.forEach((char) => {
+        gsap.to(char, {
+          x: 0,
+          y: 0,
+          duration: 0.6,
+          ease: "elastic.out(1, 0.4)",
+          overwrite: "auto",
+        });
+      });
+    };
+
+    container.addEventListener("mousemove", handleMouseMove);
+    container.addEventListener("mouseleave", handleMouseLeave);
+    return () => {
+      container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [containerRef]);
+}
+
+function RepulseText({
+  text,
+  className,
 }: {
-  theme: "dark" | "light";
+  text: string;
+  className?: string;
 }) {
+  const containerRef = useRef<HTMLHeadingElement>(null);
+  useCharRepulsion(containerRef);
+
   return (
-    <>
-      <PerspectiveCamera
-        makeDefault
-        position={[
-          -0.07542700310537993, 0.8182533429761684, 7.0903515877460865,
-        ]}
-      />
-      {DEV_LIGHTS ? <SceneLights /> : <AboutMeLights mode={theme} />}
-      <FloatingModel baseY={-1}>
-        <Instances scale={1}>
-          <AboutMeModelTyped scale={1.6} position={[0, 0, -2]} />
-        </Instances>
-      </FloatingModel>
-      <Text
-        font="/fonts/Ephesis-Regular.ttf"
-        fontSize={6}
-        anchorX="center"
-        anchorY="middle"
-        position={[0, 5, -15]}
-        color={theme === "dark" ? "#666666" : "#dddddd"}
-      >
-        About Me
-      </Text>
-      {/* <CameraDebug /> */}
-    </>
+    <h2 ref={containerRef} className={className}>
+      {text.split("").map((char, i) => (
+        <span
+          key={i}
+          className="repulse-char inline-block cursor-default"
+          style={{ whiteSpace: char === " " ? "pre" : undefined }}
+        >
+          {char === " " ? "\u00A0" : char}
+        </span>
+      ))}
+    </h2>
   );
 }
 
-interface AboutMeProps {
-  shouldAnimate?: boolean;
-}
+const BIO_TEXT =
+  "Final-year at IIT Madras by day, architect of the 3D web by night. I live in the \"Blender-to-Browser\" pipeline—specializing in shipping high-fidelity, interactive experiences that make the standard URL feel like a canvas.";
 
-function AboutMe({ shouldAnimate = false }: AboutMeProps) {
-  const { theme } = useTheme();
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+function MaskRevealText({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLParagraphElement>(null);
 
   useGSAP(
     () => {
-      if (!shouldAnimate) return;
-      let split: ReturnType<typeof SplitText.create> | null = null;
-      let tween: gsap.core.Tween | null = null;
+      if (!containerRef.current) return;
 
-      if (textRef.current) {
-        split = SplitText.create(textRef.current, {
-          // Split by words+chars so visual spacing stays intact while animating chars.
-          type: "words,chars",
-        });
-      }
+      const split = SplitText.create(containerRef.current, {
+        type: "words",
+      });
 
-      if (split && textRef.current) {
-        tween = gsap.fromTo(
-          split.chars,
-          {
-            filter: "blur(10px) brightness(30%)",
-            willChange: "filter",
+      gsap.fromTo(
+        split.words,
+        { filter: "blur(8px) brightness(30%)", willChange: "filter" },
+        {
+          filter: "blur(0px) brightness(100%)",
+          ease: "none",
+          stagger: 0.05,
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: "top 85%",
+            end: "bottom 65%",
+            scrub: true,
           },
-          {
-            ease: "none",
-            filter: "blur(0px) brightness(100%)",
-            stagger: 0.05,
-            scrollTrigger: {
-              trigger: textRef.current,
-              start: "top bottom-=20%",
-              end: "bottom center+=80%",
-              scrub: true,
-            },
-          },
-        );
-      }
-      return () => {
-        tween?.scrollTrigger?.kill();
-        tween?.kill();
-        split?.revert();
-      };
+        },
+      );
+
+      return () => split.revert();
     },
-    {
-      scope: sectionRef,
-      dependencies: [shouldAnimate],
-      revertOnUpdate: true,
-    },
+    { scope: containerRef, dependencies: [] },
   );
 
   return (
-    <div ref={sectionRef}>
-      {/* <h2
-        ref={titleRef}
-        className="text-6xl px-30 pt-40 pb-20"
-        style={{
-          fontFamily: "var(--font-aldrich)",
-        }}
-      >
-        About Me
-      </h2> */}
-      {/* 3D Model Canvas */}
-      <div className="flex w-full h-screen ">
-        {/* Left Section: 50% width */}
-        <div className="w-screen h-full">
-          <Canvas>
-            <AboutMeScene theme={theme} />
-          </Canvas>
-        </div>
+    <p ref={containerRef} className={className}>
+      {text}
+    </p>
+  );
+}
 
-        {/* Right Section: 50% width */}
-        {/* <p
-          ref={textRef}
-          className="basis-1/2 text-xl p-20 leading-relaxed pb-100"
-          id="about"
-        >
-          Final-year at IIT Madras by day, architect of the 3D web by night. I
-          live in the &quot;Blender-to-Browser&quot; pipeline—specializing in
-          shipping high-fidelity, interactive experiences that make the standard
-          URL feel like a canvas. I’m obsessed with the technical craft required
-          to bridge the gap between complex 3D assets and seamless web
-          performance. When I’m not optimizing textures or engineering
-          interactions, I’m usually deep-diving into complex logic puzzles or
-          practicing Japanese (日本語を勉強しています). I’m driven by the
-          &ldquo;Aha!&quot; moment—whether that’s solving a difficult piece of
-          code or a literal puzzle. I build for the web’s 3D future, one
-          high-fidelity product at a time.
-        </p> */}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function AboutMe({ shouldAnimate: _ = false }: { shouldAnimate?: boolean }) {
+  useTheme();
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const mouseRef = useRef({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseRef.current = {
+      x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      y: -(((e.clientY - rect.top) / rect.height) * 2 - 1),
+    };
+  };
+
+  const handleMouseLeave = () => {
+    mouseRef.current = { x: 0, y: 0 };
+  };
+
+  return (
+    <div
+      ref={sectionRef}
+      className="h-full flex flex-row items-stretch"
+    >
+      {/* Left: text */}
+      <div className="flex flex-col justify-center px-20 gap-12 w-1/2">
+        <RepulseText
+          text="About Me"
+          className="text-8xl font-semibold font-aldrich"
+        />
+        <MaskRevealText
+          text={BIO_TEXT}
+          className="text-xl leading-relaxed text-justify"
+        />
+      </div>
+
+      {/* Right: 3D model */}
+      <div
+        className="w-1/2 h-full"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <Canvas camera={{ manual: true }}>
+          <AboutMeModelScene mouseRef={mouseRef} />
+        </Canvas>
       </div>
     </div>
   );

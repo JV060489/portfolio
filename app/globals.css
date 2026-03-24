@@ -29,7 +29,7 @@ body {
 }
 
 @theme {
-  --font-title: var(--font-aldrich);
+  --font-aldrich: var(--font-aldrich);
 }
 
 html.lenis,

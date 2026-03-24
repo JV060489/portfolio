@@ -22,12 +22,18 @@ interface HiImTextProps {
   showScrollText?: boolean;
 }
 
-export default function HiImText({ visible, showScrollText = false }: HiImTextProps) {
+export default function HiImText({
+  visible,
+  showScrollText = false,
+}: HiImTextProps) {
   const groupRef = useRef<THREE.Group>(null);
 
   const { pointer, camera, gl } = useThree();
 
-  const uMouseView = useMemo(() => ({ value: new THREE.Vector3(99999, 99999, 0) }), []);
+  const uMouseView = useMemo(
+    () => ({ value: new THREE.Vector3(99999, 99999, 0) }),
+    [],
+  );
   const uRevealRadius = useMemo(() => ({ value: 0.0 }), []);
   const uFadeIn = useMemo(() => ({ value: 0.0 }), []);
   const pointerInsideRef = useRef(false);
@@ -218,10 +224,19 @@ export default function HiImText({ visible, showScrollText = false }: HiImTextPr
     if (!hit) return null;
     viewPoint.copy(hit).applyMatrix4(camera.matrixWorldInverse);
     return viewPoint;
-  }, [pointer, camera, raycasterLocal, planeNormal, planePoint, intersectPoint, viewPoint]);
+  }, [
+    pointer,
+    camera,
+    raycasterLocal,
+    planeNormal,
+    planePoint,
+    intersectPoint,
+    viewPoint,
+  ]);
 
   useFrame(() => {
-    if (!visible || !pointerInsideRef.current || !pointerActivatedRef.current) return;
+    if (!visible || !pointerInsideRef.current || !pointerActivatedRef.current)
+      return;
 
     const vp = getMouseViewPos();
     if (vp) {
@@ -241,22 +256,6 @@ export default function HiImText({ visible, showScrollText = false }: HiImTextPr
       >
         {"Hi, I'm"}
       </Text>
-
-      {/* "Scroll to discover" — only rendered after secondLineDone */}
-      {showScrollText && (
-        <Text
-          font="/fonts/Ephesis-Regular.ttf"
-          fontSize={SCROLL_TEXT_FONT_SIZE}
-          anchorX="center"
-          anchorY="middle"
-          textAlign="center"
-          letterSpacing={SCROLL_TEXT_LETTER_SPACING}
-          position={SCROLL_TEXT_POSITION}
-          material={scrollMaterial}
-        >
-          Scroll down
-        </Text>
-      )}
     </group>
   );
 }

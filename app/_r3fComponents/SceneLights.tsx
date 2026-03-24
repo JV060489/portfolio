@@ -186,7 +186,7 @@ export default function SceneLights() {
     "Save Defaults": button(() => {
       setLights((current) => {
         saveDefaults(current);
-        console.log("Light configuration saved!");
+        console.log("Light configuration saved!", JSON.stringify(current, null, 2));
         return current;
       });
     }),

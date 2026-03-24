@@ -10,7 +10,11 @@ import { useTheme } from "@/app/context/ThemeContext";
 import { cn } from "@/utils/utils";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 import AboutMe from "./AboutMe";
+import StackSection from "./StackSection";
 import Lenis from "lenis";
 import HiImText from "./HiImText";
 import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
@@ -149,7 +153,7 @@ function TypewriterLine({
  */
 const BULB_Y_FRACTION = 0.43;
 
-function ParentCanvas() {
+function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
@@ -178,6 +182,9 @@ function ParentCanvas() {
     // Intro starts locked; keep Lenis paused until the second line finishes.
     lenis.stop();
     lenis.scrollTo(0, { immediate: true });
+
+    // Keep GSAP ScrollTrigger in sync with Lenis scroll position
+    lenis.on("scroll", ScrollTrigger.update);
 
     const onFrame = (time: number) => {
       lenis.raf(time);
@@ -379,6 +386,7 @@ function ParentCanvas() {
 
   const handleIntroComplete = () => {
     setIntroComplete(true);
+    onIntroComplete?.();
   };
 
   return (
@@ -464,6 +472,7 @@ function ParentCanvas() {
       {/* About Me section */}
       
       <AboutMe shouldAnimate={secondLineDone} />
+      <StackSection />
     </div>
   );
 }

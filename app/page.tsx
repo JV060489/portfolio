@@ -3,9 +3,11 @@
 import { useState } from "react";
 import ParentCanvas from "./_r3fComponents/ParentCanvas";
 import LoadingScreen from "./_r3fComponents/LoadingScreen";
+import CursorLight from "./_r3fComponents/CursorLight";
 
 function Page() {
   const [assetsReady, setAssetsReady] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
 
   return (
     <main
@@ -15,7 +17,10 @@ function Page() {
       {!assetsReady && (
         <LoadingScreen onComplete={() => setAssetsReady(true)} />
       )}
-      {assetsReady && <ParentCanvas />}
+      {assetsReady && (
+        <ParentCanvas onIntroComplete={() => setIntroComplete(true)} />
+      )}
+      {introComplete && <CursorLight />}
     </main>
   );
 }
