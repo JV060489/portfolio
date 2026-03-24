@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import ParentCanvas from "./_r3fComponents/ParentCanvas";
-import LoadingScreen from "./_r3fComponents/LoadingScreen";
-import CursorLight from "./_r3fComponents/CursorLight";
+import ParentCanvas from "./_ParentCanvas/ParentCanvas";
+import LoadingScreen from "./_ParentCanvas/LoadingScreen";
+import CursorLight from "./_Stack/CursorLight";
 
 function Page() {
   const [assetsReady, setAssetsReady] = useState(false);

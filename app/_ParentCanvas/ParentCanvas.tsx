@@ -2,10 +2,10 @@
 
 import { Canvas } from "@react-three/fiber";
 import { useState, useRef, useEffect } from "react";
-import IntroText from "./IntroText";
-import { type PixelBurstHandle } from "./PixelBurst";
+import IntroText from "../_Intro/IntroText";
+import { type PixelBurstHandle } from "../../_unused/PixelBurst";
 
-import { type ThemeTransitionHandle } from "./_unused/ThemeTransitionOverlay";
+import { type ThemeTransitionHandle } from "./ThemeTransitionOverlay";
 import { useTheme } from "@/app/context/ThemeContext";
 import { cn } from "@/utils/utils";
 import gsap from "gsap";
@@ -13,11 +13,16 @@ import { SplitText } from "gsap/SplitText";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
-import AboutMe from "./AboutMe";
-import StackSection from "./StackSection";
+import AboutMe from "../_AboutMe/AboutMe";
+import StackSection from "../_Stack/StackSection";
 import Lenis from "lenis";
-import HiImText from "./HiImText";
-import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
+import HiImText from "../_Intro/HiImText";
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+  Noise,
+} from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 
 gsap.registerPlugin(SplitText);
@@ -153,7 +158,9 @@ function TypewriterLine({
  */
 const BULB_Y_FRACTION = 0.43;
 
-function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}) {
+function ParentCanvas({
+  onIntroComplete,
+}: { onIntroComplete?: () => void } = {}) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
@@ -394,10 +401,13 @@ function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}
       {/* Main canvas – IntroText owns the camera */}
       <Canvas
         camera={{ manual: true }}
-        style={{ background: canvasBg, width: "100%", height: "100%", zIndex: 20 }}
+        style={{
+          background: canvasBg,
+          width: "100%",
+          height: "100%",
+          zIndex: 20,
+        }}
       >
-
-
         <ambientLight intensity={0.5} />
         <directionalLight position={[0, 10, 10]} intensity={1} />
         <IntroText
@@ -405,7 +415,11 @@ function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}
           onIntroComplete={handleIntroComplete}
           isDark={isDark}
         />
-        <HiImText visible={introComplete} isDark={isDark} showScrollText={secondLineDone} />
+        <HiImText
+          visible={introComplete}
+          isDark={isDark}
+          showScrollText={secondLineDone}
+        />
         <EffectComposer>
           <Bloom
             intensity={0.1}
@@ -413,10 +427,7 @@ function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}
             luminanceSmoothing={0.4}
             mipmapBlur
           />
-          <Noise
-            opacity={0.06}
-            blendFunction={BlendFunction.SOFT_LIGHT}
-          />
+          <Noise opacity={0.06} blendFunction={BlendFunction.SOFT_LIGHT} />
           <Vignette
             offset={0.3}
             darkness={0.7}
@@ -424,8 +435,6 @@ function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}
           />
         </EffectComposer>
       </Canvas>
-
-      
 
       {/* "3D Web Developer" label — centred horizontally, always mounted */}
       <div
@@ -470,7 +479,7 @@ function ParentCanvas({ onIntroComplete }: { onIntroComplete?: () => void } = {}
         </svg>
       )}
       {/* About Me section */}
-      
+
       <AboutMe shouldAnimate={secondLineDone} />
       <StackSection />
     </div>

@@ -60,8 +60,12 @@ function FloatingModel({
   );
 }
 
-const CAMERA_POSITION: [number, number, number] = [3.598065155573723, 0.5462456123396201, 2.7901045951631516];
-const CAMERA_TARGET: [number, number, number] = [1.0201418214891476, 0.11689688992812922, -0.7868081410860884];
+const CAMERA_POSITION: [number, number, number] = [
+  3.598065155573723, 0.5462456123396201, 2.7901045951631516,
+];
+const CAMERA_TARGET: [number, number, number] = [
+  1.0201418214891476, 0.11689688992812922, -0.7868081410860884,
+];
 
 // How much the camera shifts in world units per normalized mouse unit
 const PARALLAX_STRENGTH = 0.4;
@@ -121,7 +125,6 @@ function AboutMeModelScene({
   );
 }
 
-
 const CAMERA_STORAGE_KEY = "aboutme-camera-setup";
 
 // Plain object to hold controls ref — avoids React compiler ref-in-render lint
@@ -169,13 +172,7 @@ function CameraDebug() {
     }),
   });
 
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      target={CAMERA_TARGET}
-    />
-  );
+  return <OrbitControls ref={controlsRef} makeDefault target={CAMERA_TARGET} />;
 }
 
 // Radius (px) within which a char reacts to the cursor
@@ -272,7 +269,7 @@ function RepulseText({
 }
 
 const BIO_TEXT =
-  "Final-year at IIT Madras by day, architect of the 3D web by night. I live in the \"Blender-to-Browser\" pipeline—specializing in shipping high-fidelity, interactive experiences that make the standard URL feel like a canvas.";
+  'Final-year at IIT Madras by day, architect of the 3D web by night. I live in the "Blender-to-Browser" pipeline—specializing in shipping high-fidelity, interactive experiences that make the standard URL feel like a canvas.';
 
 function MaskRevealText({
   text,
@@ -338,10 +335,7 @@ function AboutMe({ shouldAnimate: _ = false }: { shouldAnimate?: boolean }) {
   };
 
   return (
-    <div
-      ref={sectionRef}
-      className="h-full flex flex-row items-stretch"
-    >
+    <div ref={sectionRef} className="h-full flex flex-row items-stretch">
       {/* Left: text */}
       <div className="flex flex-col justify-center px-20 gap-12 w-1/2">
         <RepulseText
