@@ -44,3 +44,52 @@ html.lenis body {
 .lenis.lenis-stopped {
   overflow: hidden;
 }
+
+/* ── Living Cards: animated border angle for rotating glow ──────────────── */
+
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ── Living Cards: organic breathing shapes ────────────────────────────── */
+
+.living-card {
+  will-change: border-radius;
+  backface-visibility: hidden;
+}
+
+.living-card-0 { animation: breathe-0 14s ease-in-out infinite; }
+.living-card-1 { animation: breathe-1 14s ease-in-out infinite; animation-delay: -4.7s; }
+.living-card-2 { animation: breathe-2 14s ease-in-out infinite; animation-delay: -9.3s; }
+
+@keyframes breathe-0 {
+  0%, 100% { border-radius: 40% 60% 55% 45% / 55% 40% 60% 45%; }
+  25%      { border-radius: 55% 45% 40% 60% / 45% 55% 45% 55%; }
+  50%      { border-radius: 45% 55% 60% 40% / 60% 45% 55% 40%; }
+  75%      { border-radius: 60% 40% 45% 55% / 40% 60% 40% 60%; }
+}
+
+@keyframes breathe-1 {
+  0%, 100% { border-radius: 50% 50% 45% 55% / 60% 40% 55% 45%; }
+  25%      { border-radius: 45% 55% 55% 45% / 50% 50% 40% 60%; }
+  50%      { border-radius: 55% 45% 50% 50% / 45% 55% 60% 40%; }
+  75%      { border-radius: 40% 60% 60% 40% / 55% 45% 50% 50%; }
+}
+
+@keyframes breathe-2 {
+  0%, 100% { border-radius: 60% 40% 50% 50% / 45% 55% 50% 50%; }
+  25%      { border-radius: 50% 50% 40% 60% / 55% 45% 45% 55%; }
+  50%      { border-radius: 40% 60% 55% 45% / 50% 50% 55% 45%; }
+  75%      { border-radius: 55% 45% 45% 55% / 40% 60% 50% 50%; }
+}
+
+/* Rotating gradient border on hover */
+.glow-border-spin {
+  animation: spinBorder 3s linear infinite;
+}
+
+@keyframes spinBorder {
+  to { --border-angle: 360deg; }
+}

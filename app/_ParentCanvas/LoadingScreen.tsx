@@ -83,7 +83,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+      className="fixed inset-0 z-9999 flex flex-col items-center justify-center"
       style={{ background: "var(--bg, #000000)" }}
     >
       {/* Percentage */}
@@ -98,7 +98,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
       </span>
 
       {/* Progress bar */}
-      <div className="mt-6 h-[2px] w-48 overflow-hidden rounded-full bg-white/10">
+      <div className="mt-6 h-0.5 w-48 overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-white/60 transition-all duration-200 ease-out"
           style={{ width: `${progress}%` }}

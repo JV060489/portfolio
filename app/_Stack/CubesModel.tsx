@@ -11,7 +11,7 @@ interface Props {
 
 // Three keyframe positions found with PositionHelper
 const DEG = Math.PI / 180;
-const START  = { x: 15.224, y:  8.450, z: 0.000, rx:   0 * DEG, ry:   0 * DEG, rz:   0 * DEG };
+const START  = { x: 19, y:  3.450, z: 0.000, rx:   0 * DEG, ry:   0 * DEG, rz:   0 * DEG };
 const MIDDLE = { x: -0.213, y: -1.764, z: 5.031, rx:  29 * DEG, ry:  180 * DEG, rz:  -4 * DEG };
 const END    = { x:  0.000, y:  0.000, z: 2.000, rx:  30 * DEG, ry: 320 * DEG, rz:   0 * DEG };
 
@@ -57,14 +57,14 @@ function HoverCube({ name, children, onHover }: HoverCubeProps) {
 
   useFrame((_, delta) => {
     const target = hovered ? 1 : 0;
-    t.current = THREE.MathUtils.damp(t.current, target, 7, delta);
+    t.current = THREE.MathUtils.damp(t.current, target, 10, delta);
     const tv = t.current;
     const scale = THREE.MathUtils.lerp(1.0, 1.06, tv);
     entries.current.forEach(({ mesh, originalColor }) => {
       mesh.scale.setScalar(scale);
       const mat = mesh.material as THREE.MeshStandardMaterial;
       mat.emissive.copy(originalColor);
-      mat.emissiveIntensity = tv * 0.2;
+      mat.emissiveIntensity = tv * 0.15;
     });
   });
 
@@ -113,11 +113,9 @@ export default function CubesModelScene({ modelState, onHover }: Props) {
 
   const { gl } = useThree();
 
-  const { nodes, animations } = useGLTF("/Cubes.glb") as unknown as {
+  const { nodes } = useGLTF("/Cubes.glb") as unknown as {
     nodes: Record<string, THREE.Mesh>;
-    animations: THREE.AnimationClip[];
   };
-  useAnimations(animations, group);
 
   // Pointer drag handlers — only active when settled
   useEffect(() => {

@@ -15,6 +15,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 import AboutMe from "../_AboutMe/AboutMe";
 import StackSection from "../_Stack/StackSection";
+import ProjectsSection from "../_Projects/ProjectsSection";
 import Lenis from "lenis";
 import HiImText from "../_Intro/HiImText";
 import {
@@ -451,7 +452,7 @@ function ParentCanvas({
         >
           {introComplete && (
             <TypewriterLine
-              text="3D Web Developer"
+              text="3D AI Engineer"
               delay={1}
               color={textColor}
               fontFamily="var(--font-aldrich)"
@@ -482,6 +483,7 @@ function ParentCanvas({
 
       <AboutMe shouldAnimate={secondLineDone} />
       <StackSection />
+      <ProjectsSection />
     </div>
   );
 }

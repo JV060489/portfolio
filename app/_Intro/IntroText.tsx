@@ -15,7 +15,7 @@ CustomEase.create(
 );
 
 // ── Dev toggle: set to true to skip the intro animation ─────────────────────
-const SKIP_INTRO = false;
+const SKIP_INTRO = true;
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;

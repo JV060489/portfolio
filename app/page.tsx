@@ -3,7 +3,7 @@
 import { useState } from "react";
 import ParentCanvas from "./_ParentCanvas/ParentCanvas";
 import LoadingScreen from "./_ParentCanvas/LoadingScreen";
-import CursorLight from "./_Stack/CursorLight";
+import CursorLight from "./_ParentCanvas/CursorLight";
 
 function Page() {
   const [assetsReady, setAssetsReady] = useState(false);

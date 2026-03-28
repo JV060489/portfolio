@@ -121,17 +121,17 @@ export default function StackSection() {
 
       const split = SplitText.create(titleRef.current, { type: "words" });
 
-      // ONE Timeline to rule them all
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top top",
-          end: "+=500%", // The full pinning duration
+          end: "+=550%", // 5.5 screens total
           scrub: true,
           pin: true,
           pinSpacing: true,
           snap: {
-            snapTo: [0, 0.4, 1], // Simplified snap points
+            snapTo: [0.215, 0.9], // Simplified snap points
             duration: { min: 0.5, max: 1.5 },
             delay: 0.1,
             ease: "power2.inOut",
@@ -143,7 +143,7 @@ export default function StackSection() {
       });
       tl.to({}, { duration: 10 });
 
-      // 1. Canvas Fade (happens early in the scroll)
+      // Canvas Fade (happens early in the scroll)
       tl.fromTo(
         canvasWrapRef.current,
         { opacity: 0 },
@@ -151,7 +151,7 @@ export default function StackSection() {
 
         1.25,
       );
-      // Canvas fad out and back in for rain-to-model switch
+      // Canvas fade out and back in for rain-to-model switch
       tl.to(
         canvasWrapRef.current,
         { opacity: 0, onComplete: () => setShowRain(false) },
@@ -180,11 +180,11 @@ export default function StackSection() {
         6.5,
       );
 
-      // 2. Text Blur In (Starts at 10% scroll)
+      // Text Blur In (Starts at 10% scroll)
       tl.fromTo(
         split.words,
         { filter: "blur(20px) brightness(0%)" },
-        { filter: "blur(0px) brightness(100%)", stagger: 0.08, duration: 0.75 },
+        { filter: "blur(0px) brightness(100%)", stagger: 0.08, duration: 2 },
         0,
       );
 
@@ -195,7 +195,7 @@ export default function StackSection() {
           filter: "blur(20px) brightness(0%)",
           opacity: 0,
           stagger: 0.08,
-          duration: 0.75,
+          duration: 2,
           onComplete: () => {
             if (titleRef.current) titleRef.current.style.display = "none";
           },
@@ -206,10 +206,11 @@ export default function StackSection() {
         4,
       );
 
+      tl.to({}, { duration: 3 });
 
 
-      // Attach DevTools to the master timeline
-      // GSDevTools.create({ animation: tl });
+
+    
     },
     { scope: sectionRef, dependencies: [] },
   );
