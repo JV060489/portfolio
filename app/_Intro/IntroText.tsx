@@ -15,7 +15,7 @@ CustomEase.create(
 );
 
 // ── Dev toggle: set to true to skip the intro animation ─────────────────────
-const SKIP_INTRO = true;
+const SKIP_INTRO = false;
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
 const ROWS = 80;
@@ -250,6 +250,7 @@ export default function IntroText({
   const zHoverRef = useRef<Float32Array | null>(null); // per-cell hover Z
   const animatingRef = useRef<Set<number>>(new Set()); // IDs with active tween
   const animDoneRef = useRef(false); // intro complete?
+  const pointerMovedRef = useRef(false); // true only on the frame the pointer moves
   const matScratch = useRef(new THREE.Matrix4());
   // Only true after a real pointermove fires — prevents the default (0,0)
   // pointer position from triggering hover on the center cells at anim end.
@@ -264,6 +265,7 @@ export default function IntroText({
     const el = gl.domElement;
     const onMove = () => {
       pointerActiveRef.current = true;
+      pointerMovedRef.current = true;
     };
     const onLeave = () => {
       pointerActiveRef.current = false;
@@ -586,8 +588,9 @@ export default function IntroText({
       mesh.instanceMatrix.needsUpdate = true;
     }
 
-    // Raycast only while the pointer is actually over the canvas
-    if (!pointerActiveRef.current) return;
+    // Raycast only when the pointer actually moved (not every frame)
+    if (!pointerActiveRef.current || !pointerMovedRef.current) return;
+    pointerMovedRef.current = false;
 
     // Raycast using R3F's auto-updated pointer + raycaster
     raycaster.setFromCamera(pointer, cam);

@@ -28,6 +28,10 @@ import { BlendFunction } from "postprocessing";
 
 gsap.registerPlugin(SplitText);
 
+// ── Initial scroll target ────────────────────────────────────────────────────
+// Set to a CSS selector to auto-scroll there on load, or null to start at top.
+const INITIAL_SCROLL_TARGET: string | null = null;
+
 // ── Typewriter component ──────────────────────────────────────────────────────
 interface TypewriterLineProps {
   text: string;
@@ -344,6 +348,19 @@ function ParentCanvas({
     if (!secondLineDone) {
       window.scrollTo({ top: 0, behavior: "auto" });
     }
+  }, [secondLineDone]);
+
+  // Auto-scroll to INITIAL_SCROLL_TARGET once intro is done and Lenis is running.
+  useEffect(() => {
+    if (!secondLineDone || !INITIAL_SCROLL_TARGET) return;
+    const lenis = lenisRef.current;
+    if (!lenis) return;
+
+    // Small delay to let ScrollTrigger pins settle after Lenis starts.
+    const id = setTimeout(() => {
+      lenis.scrollTo(INITIAL_SCROLL_TARGET, { immediate: true });
+    }, 100);
+    return () => clearTimeout(id);
   }, [secondLineDone]);
 
   /**

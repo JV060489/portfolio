@@ -17,7 +17,7 @@ export interface AnimationState {
 }
 
 const LEFT_LIST  = ["Next.js", "Express", "Git", "React", "Tailwind", "JavaScript", "TypeScript"];
-const RIGHT_LIST = ["Three.js", "GSAP", "WebGL", "Modelling", "ComfyUI", "Pytorch", "Python", "HuggingFace"];
+const RIGHT_LIST = ["Three.js", "GSAP", "WebGL", "Blender", "ComfyUI", "Pytorch", "Python", "HuggingFace"];
 
 // Map display names → HoverCube names
 const DISPLAY_TO_CUBE: Record<string, string> = {
@@ -183,8 +183,8 @@ export default function StackSection() {
       // Text Blur In (Starts at 10% scroll)
       tl.fromTo(
         split.words,
-        { filter: "blur(20px) brightness(0%)" },
-        { filter: "blur(0px) brightness(100%)", stagger: 0.08, duration: 2 },
+        { filter: "blur(20px) brightness(0%)", y: 50 },
+        { filter: "blur(0px) brightness(100%)",y: 0, stagger: 0.08, duration: 2 },
         0,
       );
 
@@ -195,7 +195,7 @@ export default function StackSection() {
           filter: "blur(20px) brightness(0%)",
           opacity: 0,
           stagger: 0.08,
-          duration: 2,
+          duration: 2.5,
           onComplete: () => {
             if (titleRef.current) titleRef.current.style.display = "none";
           },
@@ -269,7 +269,7 @@ export default function StackSection() {
         Drag to explore
       </p>
 
-      <div className="relative z-10 overflow-hidden px-8 py-4">
+      <div className="relative z-10  px-8 py-4">
         <h2
           ref={titleRef}
           className="text-6xl font-semibold font-aldrich text-center"
