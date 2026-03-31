@@ -145,8 +145,8 @@ export default function PositionHelper({ children }: PositionHelperProps) {
         <TransformControls
           ref={transformRef}
           object={target}
-          mode={mode}
-          space={space}
+          mode={mode as "translate" | "rotate" | "scale"}
+          space={space as "world" | "local"}
         />
       )}
 
