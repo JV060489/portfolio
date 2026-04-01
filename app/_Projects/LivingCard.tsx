@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { useRef, useState, useCallback, useEffect } from "react";
+import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
 import { cn } from "@/utils/utils";
 
 interface LivingCardProps {
@@ -31,7 +31,18 @@ export function LivingCard({
   onClick,
 }: LivingCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const isInView = useInView(cardRef, { once: false, amount: 0.3 });
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (isInView) {
+      videoRef.current.play();
+    } else {
+      videoRef.current.pause();
+    }
+  }, [isInView]);
 
   // 3D tilt springs
   const rotateX = useSpring(0, { stiffness: 200, damping: 25 });
@@ -122,12 +133,12 @@ export function LivingCard({
         >
           {isVideo ? (
             <video
+              ref={videoRef}
               src={videoSrc}
-              autoPlay
               loop
               muted
               playsInline
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           ) : imageSrc ? (
             <img
@@ -140,11 +151,11 @@ export function LivingCard({
           )}
         </motion.div>
 
-        {/* Content overlay — forward-parallax, glass effect */}
+        Content overlay — forward-parallax, glass effect
         {overlay && (
           <motion.div
             style={{ x: contentX, y: contentY }}
-            className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-6 pb-6 pt-16 backdrop-blur-sm"
+            className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-6 pb-6 pt-16"
           >
             {overlay}
           </motion.div>

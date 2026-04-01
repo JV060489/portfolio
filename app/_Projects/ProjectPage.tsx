@@ -31,6 +31,8 @@ export interface ProjectPageProps {
   descriptionPosition: Position;
   /** Image source for the LivingCard */
   livingCardImgSrc: string;
+  /** Video source for the LivingCard (takes priority over image) */
+  livingCardVideoSrc?: string;
   /** Overlay span text on the LivingCard */
   spanText: string;
   /** Position offset for the LivingCard (px) */
@@ -41,6 +43,10 @@ export interface ProjectPageProps {
   showLivingCard?: boolean;
   /** Whether the title should wrap to a new line (useful for longer titles) */
   titleNewLine?: boolean;
+  /** Push the description trigger point forward */
+  descTriggerOffset?: string;
+  /** How many screens wide this project is (default 1.5) */
+  screens?: number;
   /** Ref for the parallax title element (used by parent for GSAP animation) */
   parallaxRef?: React.RefObject<HTMLDivElement | null>;
 }
@@ -53,15 +59,19 @@ export default function ProjectPage({
   description,
   descriptionPosition,
   livingCardImgSrc,
+  livingCardVideoSrc,
   spanText,
   spanPosition,
   spanSize,
   showLivingCard = true,
   titleNewLine = false,
+  descTriggerOffset = "0%",
+  screens = 1.5,
   parallaxRef,
 }: ProjectPageProps) {
+
   return (
-    <div className="relative h-full shrink-0 flex items-center bg-black overflow-visible" style={{ width: "150vw" }}>
+    <div className="relative h-full shrink-0 flex items-center bg-black overflow-visible" style={{ width: `${screens * 100}vw` }}>
       {/* Title with parallax + repulse */}
       <div
         ref={parallaxRef}
@@ -71,9 +81,19 @@ export default function ProjectPage({
           top: titlePosition.y,
         }}
       >
-        <h2 className={`text-5xl font-aldrich font-bold text-white select-none tracking-widest uppercase ${titleNewLine ? "whitespace-pre-line" : "whitespace-nowrap"}`}>
-          {title}
-        </h2>
+        {titleNewLine ? (
+          <div>
+            {title.split("\n").map((line, i) => (
+              <h2 key={i} className="text-5xl font-aldrich font-bold text-white select-none tracking-widest uppercase whitespace-nowrap">
+                {line}
+              </h2>
+            ))}
+          </div>
+        ) : (
+          <h2 className="text-5xl font-aldrich font-bold text-white select-none tracking-widest uppercase whitespace-nowrap">
+            {title}
+          </h2>
+        )}
       </div>
 
       {/* Sub text — no parallax, grey */}
@@ -98,8 +118,8 @@ export default function ProjectPage({
             top: descriptionPosition.y,
           }}
         >
-          <p className="text-3xl font-aldrich text-neutral-300 leading-relaxed select-none italic">
-            &ldquo;{description}&rdquo;
+          <p data-split-anim data-split-role="desc" data-trigger-offset={descTriggerOffset} className="text-3xl font-aldrich text-neutral-300 leading-relaxed select-none italic">
+            {description}
           </p>
         </div>
       )}
@@ -117,6 +137,7 @@ export default function ProjectPage({
         >
           <LivingCard
             imageSrc={livingCardImgSrc}
+            videoSrc={livingCardVideoSrc}
             alt={title.toLowerCase()}
             className="w-full h-full"
             overlay={

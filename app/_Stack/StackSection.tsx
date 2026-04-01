@@ -131,13 +131,17 @@ export default function StackSection() {
           pin: true,
           pinSpacing: true,
           snap: {
-            snapTo: [0.215, 0.9], // Simplified snap points
-            duration: { min: 0.5, max: 1.5 },
+            snapTo: [0.215, 0.9],
+            inertia: false,
+            duration: { min: 0.4, max: 2.5 },
             delay: 0.1,
             ease: "power2.inOut",
-          },
+          } as ScrollTrigger.SnapVars,
           onUpdate: (self) => {
-            progressRef.current = self.progress; // Update your 3D progress here
+            progressRef.current = self.progress;
+            // Switch rain/model when canvas is fully faded out (midpoint between fade-out and fade-in)
+            const switchPoint = 5.75 / tl.totalDuration();
+            setShowRain(self.progress < switchPoint);
           },
         },
       });
@@ -154,7 +158,7 @@ export default function StackSection() {
       // Canvas fade out and back in for rain-to-model switch
       tl.to(
         canvasWrapRef.current,
-        { opacity: 0, onComplete: () => setShowRain(false) },
+        { opacity: 0 },
         5.5,
       );
       // Canvas fade back in for model reveal
@@ -162,7 +166,6 @@ export default function StackSection() {
         canvasWrapRef.current,
         {
           opacity: 1,
-          onReverseComplete: () => setShowRain(true),
           style: {
             filter: "blur(1px)",
           },
@@ -233,22 +236,17 @@ export default function StackSection() {
             scene.background = null;
           }}
         >
-          {showRain ? (
-            <>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[5, 10, 5]} intensity={1.2} />
-              <CubeRain progressRef={progressRef} />
-            </>
-          ) : (
-            <>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[5, 10, 5]} intensity={1.2} />
-              <CubesModelScene
-                modelState={modelState}
-                onHover={setHoveredCube}
-              />
-            </>
-          )}
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[5, 10, 5]} intensity={1.2} />
+          <group visible={showRain}>
+            <CubeRain progressRef={progressRef} />
+          </group>
+          <group visible={!showRain}>
+            <CubesModelScene
+              modelState={modelState}
+              onHover={setHoveredCube}
+            />
+          </group>
         </Canvas>
       </div>
 

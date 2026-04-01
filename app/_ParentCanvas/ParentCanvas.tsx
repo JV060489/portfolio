@@ -16,6 +16,7 @@ gsap.registerPlugin(ScrollTrigger);
 import AboutMe from "../_AboutMe/AboutMe";
 import StackSection from "../_Stack/StackSection";
 import ProjectsSection from "../_Projects/ProjectsSection";
+import Contact from "../_Contact/Contact";
 import Lenis from "lenis";
 import HiImText from "../_Intro/HiImText";
 import {
@@ -501,6 +502,7 @@ function ParentCanvas({
       <AboutMe shouldAnimate={secondLineDone} />
       <StackSection />
       <ProjectsSection />
+      <Contact />
     </div>
   );
 }

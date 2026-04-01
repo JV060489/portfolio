@@ -4,10 +4,11 @@ import { useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
 import { GSDevTools } from "gsap/all";
 import ProjectPage, { type ProjectPageProps } from "./ProjectPage";
 
-gsap.registerPlugin(useGSAP, ScrollTrigger, GSDevTools);
+gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText, GSDevTools);
 
 // ── Magnetic repulsion (for the "Experience" title) ─────────────────────────
 const REPULSE_RADIUS = 100;
@@ -109,26 +110,13 @@ const PROJECTS: (ProjectPageProps & { key: string })[] = [
     titleParallaxSpeed: 1.15,
     subText: "AI Editor",
     subTextPosition: { x: "10%", y: "53%" },
-    description: "Next-gen 3D editor with integrated AI text-to-scene capabilities.",
+    description: "Architected a real-time collaborative 3D engine featuring an AI-driven inference pipeline that synchronizes web-based inputs with Blender via a custom Python plugin.",
     descriptionPosition: { x: "60%", y: "42%" },
+    descTriggerOffset: "0%",
     livingCardImgSrc: "/Helper/portal-preview.png",
     spanText: "",
     spanPosition: { x: "25%", y: "20%" },
     spanSize: { width: "30%", height: "60%" },
-  },
-  {
-    key: "vizualspace",
-    title: "VIZUALSPACE",
-    titlePosition: { x: "0%", y: "30%" },
-    titleParallaxSpeed: 1.15,
-    subText: "WebXR Catalogue",
-    subTextPosition: { x: "15%", y: "38%" },
-    description: "A curated universe of browser-based spatial experiences",
-    descriptionPosition: { x: "65%", y: "52%" },
-    livingCardImgSrc: "/Helper/portal-preview.png",
-    spanText: "",
-    spanPosition: { x: "35%", y: "25%" },
-    spanSize: { width: "22.5%", height: "55%" },
   },
   {
     key: "arc",
@@ -138,8 +126,9 @@ const PROJECTS: (ProjectPageProps & { key: string })[] = [
     subText: "Internship",
     subTextPosition: { x: "20%", y: "53%" },
     description:
-      "Architected an immersive XR application integrating AI and 3D workflows to enhance digital accessibility for users with disabilities.",
+      "Developed a Unity-based XR ecosystem featuring on-device Computer Vision and Dolby Atmos spatial mapping to bridge the gap between physical 3D assets and digital accessibility.",
     descriptionPosition: { x: "35%", y: "35%" },
+    descTriggerOffset: "-50%",
     livingCardImgSrc: "/Helper/portal-preview.png",
     spanText: "",
     spanPosition: { x: "20%", y: "25%" },
@@ -148,20 +137,22 @@ const PROJECTS: (ProjectPageProps & { key: string })[] = [
   },
   {
     key: "freelance",
-    title: "Independent \n Engineer",
+    title: "Independent\nEngineer",
     titleNewLine: true,
-    titlePosition: { x: "-15%", y: "35%" },
+    titlePosition: { x: "-15%", y: "40%" },
     titleParallaxSpeed: 1.15,
     subText: "Contract Work",
     subTextPosition: { x: "0%", y: "53%" },
     description:
-      "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and XR solutions",
-    descriptionPosition: { x: "20%", y: "35%" },
+      "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and AI solutions",
+    descriptionPosition: { x: "25%", y: "40%" },
+    descTriggerOffset: "-50%",
     livingCardImgSrc: "/Helper/portal-preview.png",
     spanText: "",
     spanPosition: { x: "30%", y: "25%" },
     spanSize: { width: "35%", height: "50%" },
     showLivingCard: false,
+    screens: 1,
   },
   {
     key: "inter-iit",
@@ -169,14 +160,17 @@ const PROJECTS: (ProjectPageProps & { key: string })[] = [
     titlePosition: { x: "-20%", y: "35%" },
     titleParallaxSpeed: 1.15,
     subText: "INTER-IIT",
-    subTextPosition: { x: "-5%", y: "43%" },
+    subTextPosition: { x: "0%", y: "43%" },
     description:
-      "Led a 5-person technical team to engineer a full-scale 3D production pipeline; overseen bespoke character modeling, rigging, and high-fidelity animation for a competitive cinematic entry.",
+      "Led a team of 5 to create a 3D animated short for the Inter-IIT Meet—India’s premier engineering assembly where the top 0.01% of technical talent competes—overseeing all aspects from concept to post-production",
     descriptionPosition: { x: "40%", y: "35%" },
+    descTriggerOffset: "-80%",
     livingCardImgSrc: "/Helper/portal-preview.png",
+    livingCardVideoSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Riseup.mp4",
     spanText: "",
-    spanPosition: { x: "20%", y: "10%" },
-    spanSize: { width: "15%", height: "75%" },
+    spanPosition: { x: "20%", y: "15%" },
+    spanSize: { width: "16%", height: "65%" },
+    screens: 1,
   },
 ];
 
@@ -194,8 +188,8 @@ export default function ProjectsSection() {
     () => {
       if (!sectionRef.current || !trackRef.current) return;
 
-      const screensPerProject = 1.5;
-      const totalSlides = 1 + PROJECTS.length * screensPerProject; // title + projects (2 each)
+      const projectScreens = PROJECTS.map((p) => p.screens ?? 1.5);
+      const totalSlides = 1 + projectScreens.reduce((sum, s) => sum + s, 0);
       const travelDistance = (totalSlides - 1) * 100; // vw
 
       const tl = gsap
@@ -222,9 +216,10 @@ export default function ProjectsSection() {
         const el = parallaxRefs.current[i];
         if (!el) return;
 
-        // Each project occupies 2 slides; add 1 screen buffer on each side for parallax
-        const projectStartSlide = Math.max(0, 1 + i * screensPerProject - 1);
-        const projectEndSlide = Math.min(totalSlides, 1 + (i + 1) * screensPerProject + 1);
+        // Cumulative start position for this project + 1 screen buffer each side for parallax
+        const cumulativeBefore = projectScreens.slice(0, i).reduce((s, v) => s + v, 0);
+        const projectStartSlide = Math.max(0, 1 + cumulativeBefore - 1);
+        const projectEndSlide = Math.min(totalSlides, 1 + cumulativeBefore + projectScreens[i] + 1);
 
         const parallaxScreens = projectEndSlide - projectStartSlide;
         const parallaxAmount = parallaxScreens * 100 * (project.titleParallaxSpeed - 1); // vw
@@ -239,6 +234,40 @@ export default function ProjectsSection() {
           },
           projectStartSlide, // position in timeline matches the slide
         );
+      });
+
+      // ── Split-text scroll reveal for all [data-split-anim] elements ────────
+      const origins: [number, number][] = [
+        [-60, -30],  // left top
+        [-60, 30],   // left bottom
+        [60, 30],    // right bottom
+      ];
+
+      const splitAnimEls = sectionRef.current!.querySelectorAll<HTMLElement>("[data-split-anim]");
+
+      splitAnimEls.forEach((el) => {
+        const triggerOffset = el.dataset.triggerOffset || "0%";
+        const origin = origins[Math.floor(Math.random() * origins.length)];
+        const [xDir, yDir] = origin;
+        const split = SplitText.create(el, { type: "lines" });
+
+        gsap.set(split.lines, { opacity: 0, x: xDir, y: yDir });
+
+        gsap.to(split.lines, {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          duration: 0.8,
+          ease: "power1.out",
+          stagger: 0.15,
+          paused: true,
+          scrollTrigger: {
+            trigger: el,
+            containerAnimation: tl,
+            start: `left+=${parseFloat(triggerOffset) / 100 * window.innerWidth}px 100%`,
+            once: true,
+          },
+        });
       });
 
     },
@@ -256,7 +285,7 @@ export default function ProjectsSection() {
       <div
         ref={trackRef}
         className="absolute top-0 left-0 h-full flex will-change-transform"
-        style={{ width: `${(1 + PROJECTS.length * 1.5) * 100}vw` }}
+        style={{ width: `${(1 + PROJECTS.reduce((sum, p) => sum + (p.screens ?? 1.5), 0)) * 100}vw` }}
       >
         {/* Screen 1 — Title */}
         <div className="relative w-screen h-full flex items-center justify-center shrink-0 bg-black">

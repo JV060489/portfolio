@@ -344,7 +344,7 @@ function AboutMe({ shouldAnimate: _ = false }: { shouldAnimate?: boolean }) {
         />
         <MaskRevealText
           text={BIO_TEXT}
-          className="text-xl leading-relaxed text-start"
+          className="text-xl leading-relaxed text-start font-aldrich"
         />
       </div>
 
