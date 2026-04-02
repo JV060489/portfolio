@@ -18,14 +18,33 @@ CustomEase.create(
 const SKIP_INTRO = false;
 
 // ── Grid dimensions ──────────────────────────────────────────────────────────
-const ROWS = 80;
-const COLUMNS = 400;
-const SPACING = 0.5;
-const BOUNDING_BOX = 400;
 const HOVER_RADIUS = 10; // cells around the cursor that get triggered
 const MOBILE_BREAKPOINT = 768;
-const MOBILE_TEXT_SCALE = 0.6;
 const MOBILE_Y_OFFSET_PX = 100;
+
+interface GridConfig {
+  rows: number;
+  columns: number;
+  spacing: number;
+  boundingBox: number;
+  textScale: number;
+}
+
+const DESKTOP_GRID: GridConfig = {
+  rows: 80,
+  columns: 400,
+  spacing: 0.5,
+  boundingBox: 400,
+  textScale: 1,
+};
+
+const MOBILE_GRID: GridConfig = {
+  rows: 80,
+  columns: 200,
+  spacing: 0.5,
+  boundingBox: 200,
+  textScale: 1,
+};
 
 // ── Bayer 4×4 threshold map ──────────────────────────────────────────────────
 const BAYER_4X4_DATA = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -256,6 +275,7 @@ export default function IntroText({
   // pointer position from triggering hover on the center cells at anim end.
   const pointerActiveRef = useRef(false);
   const introLayoutIsMobileRef = useRef<boolean | null>(null);
+  const gridRef = useRef<GridConfig>(DESKTOP_GRID);
 
   const { scene, size, raycaster, pointer, gl } = useThree();
   const isMobileViewport = size.width <= MOBILE_BREAKPOINT;
@@ -282,17 +302,18 @@ export default function IntroText({
   useEffect(() => {
     const cam = cameraRef.current;
     if (!cam) return;
+    const bb = gridRef.current.boundingBox;
     const aspect = size.width / size.height;
     if (aspect < 1) {
-      cam.left = -BOUNDING_BOX / 2;
-      cam.right = BOUNDING_BOX / 2;
-      cam.top = BOUNDING_BOX / 2 / aspect;
-      cam.bottom = -BOUNDING_BOX / 2 / aspect;
+      cam.left = -bb / 2;
+      cam.right = bb / 2;
+      cam.top = bb / 2 / aspect;
+      cam.bottom = -bb / 2 / aspect;
     } else {
-      cam.left = (-BOUNDING_BOX / 2) * aspect;
-      cam.right = (BOUNDING_BOX / 2) * aspect;
-      cam.top = BOUNDING_BOX / 2;
-      cam.bottom = -BOUNDING_BOX / 2;
+      cam.left = (-bb / 2) * aspect;
+      cam.right = (bb / 2) * aspect;
+      cam.top = bb / 2;
+      cam.bottom = -bb / 2;
     }
     cam.updateProjectionMatrix();
   }, [size]);
@@ -308,6 +329,9 @@ export default function IntroText({
       introLayoutIsMobileRef.current = window.innerWidth <= MOBILE_BREAKPOINT;
     }
     const introLayoutIsMobile = introLayoutIsMobileRef.current;
+    const grid = introLayoutIsMobile ? MOBILE_GRID : DESKTOP_GRID;
+    gridRef.current = grid;
+    const { rows, columns, spacing } = grid;
 
     let tl: gsap.core.Timeline | null = null;
     let group: THREE.Group | null = null;
@@ -324,7 +348,7 @@ export default function IntroText({
       ? {
           ditherDuration: 4.5,
           zoomDuration: 5.5,
-          targetZoom: 3.2,
+          targetZoom: 1.9,
           initialZoom: 40,
         }
       : {
@@ -334,7 +358,7 @@ export default function IntroText({
           initialZoom: 70,
         };
 
-    const count = ROWS * COLUMNS;
+    const count = rows * columns;
 
     // Build per-instance attribute arrays
     const rowArr = new Float32Array(count);
@@ -342,8 +366,8 @@ export default function IntroText({
     const thresholdArr = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      const row = Math.floor(i / COLUMNS);
-      const col = i % COLUMNS;
+      const row = Math.floor(i / columns);
+      const col = i % columns;
       rowArr[i] = row;
       colArr[i] = col;
       const mRow = row % BAYER_SIZE;
@@ -371,9 +395,9 @@ export default function IntroText({
     const buildScene = async () => {
       const { texture: tex, mask } = await createTextTexture(
         textLines,
-        COLUMNS,
-        ROWS,
-        introLayoutIsMobile ? MOBILE_TEXT_SCALE : 1,
+        columns,
+        rows,
+        grid.textScale,
       );
       if (disposed) {
         tex.dispose();
@@ -387,8 +411,8 @@ export default function IntroText({
         vertexShader,
         fragmentShader,
         uniforms: {
-          uRowSize: { value: ROWS },
-          uColumnSize: { value: COLUMNS },
+          uRowSize: { value: rows },
+          uColumnSize: { value: columns },
           uGridOffsetStart: { value: 0 },
           uGridOffsetEnd: { value: 5 }, // larger Z offset for visible pop-out
           uTexture: { value: texture },
@@ -403,10 +427,10 @@ export default function IntroText({
       const dummy = new THREE.Object3D();
 
       for (let i = 0; i < count; i++) {
-        const row = Math.floor(i / COLUMNS);
-        const col = i % COLUMNS;
-        const x = (col - (COLUMNS - 1) / 2) * SPACING;
-        const y = (-row + (ROWS - 1) / 2) * SPACING;
+        const row = Math.floor(i / columns);
+        const col = i % columns;
+        const x = (col - (columns - 1) / 2) * spacing;
+        const y = (-row + (rows - 1) / 2) * spacing;
         dummy.position.set(x, y, 0);
         dummy.scale.set(1, 1, 0.5); // thicker cells so Z offset is visible
         dummy.updateMatrix();
@@ -588,6 +612,9 @@ export default function IntroText({
       mesh.instanceMatrix.needsUpdate = true;
     }
 
+    // Skip hover raycasting on mobile
+    if (isMobileViewport) return;
+
     // Raycast only when the pointer actually moved (not every frame)
     if (!pointerActiveRef.current || !pointerMovedRef.current) return;
     pointerMovedRef.current = false;
@@ -598,8 +625,9 @@ export default function IntroText({
     if (hits.length > 0) {
       const hitId = hits[0].instanceId;
       if (hitId !== undefined && mask[hitId] === 1) {
-        const hitRow = Math.floor(hitId / COLUMNS);
-        const hitCol = hitId % COLUMNS;
+        const { rows: gRows, columns: gCols } = gridRef.current;
+        const hitRow = Math.floor(hitId / gCols);
+        const hitCol = hitId % gCols;
 
         // Trigger every text cell within HOVER_RADIUS grid-cells of the hit
         for (let dr = -HOVER_RADIUS; dr <= HOVER_RADIUS; dr++) {
@@ -608,8 +636,8 @@ export default function IntroText({
             if (dist > HOVER_RADIUS) continue;
             const r = hitRow + dr;
             const c = hitCol + dc;
-            if (r < 0 || r >= ROWS || c < 0 || c >= COLUMNS) continue;
-            const nid = r * COLUMNS + c;
+            if (r < 0 || r >= gRows || c < 0 || c >= gCols) continue;
+            const nid = r * gCols + c;
             if (mask[nid] !== 1 || animatingRef.current.has(nid)) continue;
             // Stagger ripples outward from the center (max ~0.08 s at edge)
             triggerHover(nid, (dist / HOVER_RADIUS) * 0.08);

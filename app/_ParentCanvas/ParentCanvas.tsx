@@ -3,9 +3,6 @@
 import { Canvas } from "@react-three/fiber";
 import { useState, useRef, useEffect } from "react";
 import IntroText from "../_Intro/IntroText";
-import { type PixelBurstHandle } from "../../_unused/PixelBurst";
-
-import { type ThemeTransitionHandle } from "./ThemeTransitionOverlay";
 import { useTheme } from "@/app/context/ThemeContext";
 import { cn } from "@/utils/utils";
 import gsap from "gsap";
@@ -26,6 +23,7 @@ import {
   Noise,
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 
 gsap.registerPlugin(SplitText);
 
@@ -157,28 +155,18 @@ function TypewriterLine({
   );
 }
 
-/**
- * Approximate Y-fraction of the bulb within the lamp Canvas div.
- * Derived from 3D geometry: group rests at posY=0.5, bulb offset=-0.3 → world Y=0.2
- * With camera at z=4, fov=40: NDC_Y ≈ 0.137, pixel_Y ≈ (1-0.137)/2 * height ≈ 43%
- */
-const BULB_Y_FRACTION = 0.43;
-
 function ParentCanvas({
   onIntroComplete,
 }: { onIntroComplete?: () => void } = {}) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const isDark = theme === "dark";
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const isSmallScreen = isMobile || isTablet;
 
-  const [introComplete, setIntroComplete] = useState(false);
-  const [firstLineDone, setFirstLineDone] = useState(false);
-  const [secondLineDone, setSecondLineDone] = useState(false);
-  const [lampVisible, setLampVisible] = useState(false);
+  const [introComplete, setIntroComplete] = useState(isSmallScreen);
+  const [secondLineDone, setSecondLineDone] = useState(isSmallScreen);
 
-  const burstRef = useRef<PixelBurstHandle>(null);
-  const burstRef2 = useRef<PixelBurstHandle>(null);
-  const transitionRef = useRef<ThemeTransitionHandle>(null);
-  const lampDivRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<SVGSVGElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
   const lenisRafRef = useRef<number | null>(null);
@@ -193,6 +181,26 @@ function ParentCanvas({
     lenisRef.current = lenis;
 
     // Intro starts locked; keep Lenis paused until the second line finishes.
+    // On mobile, don't lock — scroll is available immediately.
+    if (isSmallScreen) {
+      // Keep GSAP ScrollTrigger in sync with Lenis scroll position
+      lenis.on("scroll", ScrollTrigger.update);
+
+      const onFrame = (time: number) => {
+        lenis.raf(time);
+        lenisRafRef.current = window.requestAnimationFrame(onFrame);
+      };
+      lenisRafRef.current = window.requestAnimationFrame(onFrame);
+
+      return () => {
+        if (lenisRafRef.current !== null) {
+          window.cancelAnimationFrame(lenisRafRef.current);
+        }
+        lenis.destroy();
+        lenisRef.current = null;
+      };
+    }
+
     lenis.stop();
     lenis.scrollTo(0, { immediate: true });
 
@@ -213,7 +221,7 @@ function ParentCanvas({
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, []);
+  }, [isSmallScreen]);
 
   // Keep Lenis in sync with intro lock state.
   useEffect(() => {
@@ -333,16 +341,6 @@ function ParentCanvas({
     };
   }, [secondLineDone]);
 
-  useEffect(() => {
-    if (!introComplete) return;
-    const ids: ReturnType<typeof setTimeout>[] = [];
-    ids.push(setTimeout(() => burstRef.current?.trigger(), 200));
-    ids.push(setTimeout(() => burstRef2.current?.trigger(), 2200));
-    // Lamp appears after "3D Web Developer" burst fully finishes (~4200ms)
-    ids.push(setTimeout(() => setLampVisible(true), 4500));
-    return () => ids.forEach(clearTimeout);
-  }, [introComplete]);
-
   // Keep scroll position at top during intro (Lenis .lenis-stopped class handles overflow lock).
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -364,50 +362,12 @@ function ParentCanvas({
     return () => clearTimeout(id);
   }, [secondLineDone]);
 
-  /**
-   * Called when the user clicks the lamp bulb.
-   * Calculates the bulb's screen position, then fires the full-screen radial
-   * pixel burst: old mode → covered → new mode, with the theme switch at midpoint.
-   */
-  const handleLampToggle = () => {
-    if (!transitionRef.current) {
-      toggleTheme();
-      return;
-    }
-
-    // Derive the bulb's normalised screen position for the burst origin
-    let originX = 0.5;
-    let originY = 0.1;
-    if (lampDivRef.current) {
-      const rect = lampDivRef.current.getBoundingClientRect();
-      originX = (rect.left + rect.width / 2) / window.innerWidth;
-      originY = (rect.top + rect.height * BULB_Y_FRACTION) / window.innerHeight;
-    }
-
-    // coverColor = CURRENT (old) theme's bg — the fill that hides the switch
-    // pixelColor = contrasting flash — same convention as PixelBurstReveal
-    const coverColor = isDark ? "#000000" : "#ffffff";
-    const pixelColor = isDark ? "#ffffff" : "#000000";
-
-    transitionRef.current.trigger({
-      origin: { x: originX, y: originY },
-      coverColor,
-      pixelColor,
-      onToggle: toggleTheme,
-      duration: 2.0,
-    });
-  };
-
   const canvasBg = isDark ? "#000000" : "#ffffff";
-  const coverColor = isDark ? "#000000" : "#ffffff";
-  const pixelColor = isDark ? "#ffffff" : "#000000";
   const textColor = isDark ? "#ffffff" : "#000000";
 
   const handleIntroStart = () => {
     setIntroComplete(false);
-    setFirstLineDone(false);
     setSecondLineDone(false);
-    setLampVisible(false);
   };
 
   const handleIntroComplete = () => {
@@ -417,76 +377,85 @@ function ParentCanvas({
 
   return (
     <div className="relative h-screen">
-      {/* Main canvas – IntroText owns the camera */}
-      <Canvas
-        camera={{ manual: true }}
-        style={{
-          background: canvasBg,
-          width: "100%",
-          height: "100%",
-          zIndex: 20,
-        }}
-      >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[0, 10, 10]} intensity={1} />
-        <IntroText
-          onIntroStart={handleIntroStart}
-          onIntroComplete={handleIntroComplete}
-          isDark={isDark}
-        />
-        <HiImText
-          visible={introComplete}
-          isDark={isDark}
-          showScrollText={secondLineDone}
-        />
-        <EffectComposer>
-          <Bloom
-            intensity={0.1}
-            luminanceThreshold={0.6}
-            luminanceSmoothing={0.4}
-            mipmapBlur
-          />
-          <Noise opacity={0.06} blendFunction={BlendFunction.SOFT_LIGHT} />
-          <Vignette
-            offset={0.3}
-            darkness={0.7}
-            blendFunction={BlendFunction.NORMAL}
-          />
-        </EffectComposer>
-      </Canvas>
-
-      {/* "3D Web Developer" label — centred horizontally, always mounted */}
-      <div
-        className={cn(
-          "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-50 select-none lg:top-[55%]",
-          introComplete ? "visible" : "invisible",
-        )}
-      >
-        <span
-          className={cn(
-            "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
-            "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none ",
-          )}
-        >
-          {introComplete && (
-            <TypewriterLine
-              text="3D AI Engineer"
-              delay={1}
-              color={textColor}
-              fontFamily="var(--font-aldrich)"
-              onComplete={() => setSecondLineDone(true)}
+      
+        <>
+          {/* Main canvas – IntroText owns the camera */}
+          <Canvas
+            camera={{ manual: true }}
+            style={{
+              background: canvasBg,
+              width: "100%",
+              height: "100%",
+              zIndex: 20,
+            }}
+          >
+            <ambientLight intensity={0.5} />
+            <directionalLight position={[0, 10, 10]} intensity={1} />
+            <IntroText
+              onIntroStart={handleIntroStart}
+              onIntroComplete={handleIntroComplete}
+              isDark={isDark}
             />
-          )}
-        </span>
-      </div>
-      {/* Scroll arrow — bottom center, hidden until second line finishes */}
-      {secondLineDone && (
+            {isMobile ? null : (
+              <>
+            <HiImText
+              visible={introComplete}
+              isDark={isDark}
+              showScrollText={secondLineDone}
+            />
+            <EffectComposer>
+              <Bloom
+                intensity={0.1}
+                luminanceThreshold={0.6}
+                luminanceSmoothing={0.4}
+                mipmapBlur
+              />
+              <Noise opacity={0.06} blendFunction={BlendFunction.SOFT_LIGHT} />
+              <Vignette
+                offset={0.3}
+                darkness={0.7}
+                blendFunction={BlendFunction.NORMAL}
+              />
+            </EffectComposer>
+            </>
+            )}
+          </Canvas>
+
+          {/* "3D AI Engineer" label — centred horizontally, always mounted */}
+          <div
+            className={cn(
+              "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-50 select-none lg:top-[55%]",
+              introComplete ? "visible" : "invisible",
+            )}
+          >
+            <span
+              className={cn(
+                "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
+                "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none ",
+              )}
+            >
+              {introComplete && (
+                <TypewriterLine
+                  text="Full Stack AI Engineer"
+                  delay={1}
+                  color={textColor}
+                  fontFamily="var(--font-aldrich)"
+                  onComplete={() => setSecondLineDone(true)}
+                />
+              )}
+            </span>
+          </div>
+        </>
+
+      {/* Scroll arrow — bottom center, desktop only */}
+      {!isSmallScreen && (
         <svg
           ref={arrowRef}
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute left-1/2 bottom-48 h-10 w-10 -translate-x-1/2 opacity-0 z-20 lg:bottom-8"
+          className="absolute left-1/2 h-10 w-10 -translate-x-1/2 opacity-0 z-20 bottom-48 lg:bottom-8"
+          style={{ visibility: secondLineDone ? "visible" : "hidden" }}
         >
           <path
             d="M17 9.5L12 14.5L7 9.5"
