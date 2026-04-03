@@ -22,7 +22,7 @@ export const siteContent = {
       { label: "Tailwind", cube: "Tailwind" },
       { label: "JavaScript", cube: "JS" },
       { label: "TypeScript", cube: "Typescript" },
-      { label: "LangChain", cube: null },
+      { label: "AWS", cube: "AWS" },
     ],
     right: [
       { label: "Three.js", cube: "ThreeJS" },

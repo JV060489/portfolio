@@ -38,6 +38,9 @@ const aldrich = Aldrich({
 export const metadata: Metadata = {
   title: "Portfolio",
   description: "Janarthanan Vasanth's Portfolio",
+  icons: {
+    icon: "/space-invaders-pixel-retro-arcade-svgrepo-com.svg",
+  },
 };
 
 export default function RootLayout({
