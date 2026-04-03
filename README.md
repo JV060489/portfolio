@@ -37,7 +37,7 @@ An immersive, interactive 3D portfolio built with React Three Fiber and Next.js.
 ### Styling
 
 - **Tailwind CSS 4** — Utility-first styling with `tailwind-merge` for class composition
-- **Custom Google Fonts** — Aldrich, Bowlby One, Bitcount Single Ink, Pixelify Sans
+- **Custom Google Fonts** — Aldrich, Bitcount Single Ink, Pixelify Sans
 
 ### Infrastructure
 
@@ -72,7 +72,7 @@ npm run dev
 npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the site.
+Open [https://janarthanan-vasanth.in/](https://janarthanan-vasanth.in/) to view the site.
 
 ## Responsive Design
 
