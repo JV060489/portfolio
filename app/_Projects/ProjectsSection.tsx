@@ -114,7 +114,7 @@ const PROJECTS: (ProjectPageProps & { key: string })[] =
 
     return {
       key,
-      title: layout.title ?? content.title,
+      title: ("title" in layout ? layout.title : undefined) ?? content.title,
       titlePosition: layout.titlePosition,
       titleParallaxSpeed: layout.titleParallaxSpeed,
       subText: content.subText,
@@ -122,14 +122,14 @@ const PROJECTS: (ProjectPageProps & { key: string })[] =
       description: content.description,
       descriptionPosition: layout.descriptionPosition,
       descTriggerOffset: layout.descTriggerOffset,
-      livingCardImgSrc: content.imageSrc ?? "/Helper/portal-preview.png",
-      livingCardVideoSrc: content.videoSrc,
+      livingCardImgSrc: ("imageSrc" in content ? content.imageSrc : undefined) ?? "/Helper/portal-preview.png",
+      livingCardVideoSrc: "videoSrc" in content ? content.videoSrc : undefined,
       spanText: layout.spanText,
       spanPosition: layout.spanPosition,
       spanSize: layout.spanSize,
-      showLivingCard: layout.showLivingCard,
-      titleNewLine: layout.titleNewLine,
-      screens: layout.screens,
+      showLivingCard: "showLivingCard" in layout ? layout.showLivingCard : undefined,
+      titleNewLine: "titleNewLine" in layout ? layout.titleNewLine : undefined,
+      screens: "screens" in layout ? layout.screens : undefined,
     };
   });
 
