@@ -9,11 +9,9 @@ import { useTheme } from "@/app/context/ThemeContext";
 import { AvatarMosaic } from "../_Contact/AvatarMosaic";
 import { Magnetic } from "../_Contact/Magnetic";
 import Image from "next/image";
+import { siteContent } from "@/app/content/siteContent";
 
 gsap.registerPlugin(SplitText);
-
-// ── Lightweight fade-in using IntersectionObserver + CSS transitions ─────────
-// No Framer Motion — avoids layout thrashing on mobile scroll.
 
 function FadeIn({
   children,
@@ -61,84 +59,26 @@ function FadeIn({
   );
 }
 
-// ── Data ────────────────────────────────────────────────────────────────────
+// ── Shared content ──────────────────────────────────────────────────────────
 
-const LEFT_STACK = [
-  "Next.js",
-  "Express",
-  "Git",
-  "React",
-  "Tailwind",
-  "JavaScript",
-  "TypeScript",
-  "LangChain",
-];
-const RIGHT_STACK = [
-  "Three.js",
-  "GSAP",
-  "WebGL",
-  "Blender",
-  "ComfyUI",
-  "Pytorch",
-  "Python",
-  "HuggingFace",
-];
+type MobileProject = {
+  key: string;
+  title: string;
+  subText: string;
+  description: string;
+  imageSrc?: string;
+  videoSrc?: string;
+  aspectRatio?: string;
+  showCard?: boolean;
+};
 
-const PROJECTS = [
-  {
-    key: "portal",
-    title: "PORTAL",
-    subText: "AI Editor",
-    description:
-      "Architected a real-time collaborative 3D engine featuring an AI-driven inference pipeline that synchronizes web-based inputs with Blender via a custom Python plugin.",
-    imageSrc: "/Helper/portal-preview.png",
-  },
-  {
-    key: "vizualspace",
-    title: "VIZUALSPACE",
-    subText: "Founding Engineer",
-    description:
-      "Developed a full-stack WebXR discovery platform using React, Next.js, R3F, and AWS while leading a lean technical team",
-    imageSrc: "/Helper/portal-preview.png",
-  },
-  {
-    key: "arc",
-    title: "ARC IITM",
-    subText: "Internship",
-    description:
-      "Developed a Unity-based XR ecosystem featuring on-device Computer Vision and Dolby Atmos spatial mapping to bridge the gap between physical 3D assets and digital accessibility.",
-    showCard: false,
-  },
-  {
-    key: "freelance",
-    title: "Independent Engineer",
-    subText: "Contract Work",
-    description:
-      "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and AI solutions",
-    showCard: false,
-  },
-  {
-    key: "inter-iit",
-    title: "3D Animation",
-    subText: "INTER-IIT",
-    description:
-      "Led a team of 5 to create a 3D animated short for the Inter-IIT Meet—India's premier engineering assembly where the top 0.01% of technical talent competes—overseeing all aspects from concept to post-production",
-    videoSrc:
-      "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Riseup.mp4",
-    aspectRatio: "9/16" as const,
-  },
-];
-
-const SOCIALS = [
-  { name: "GitHub", href: "https://github.com/JV060489" },
-  {
-    name: "LinkedIn",
-    href: "https://www.linkedin.com/in/janarthanan-vasanth-64ba45257/",
-  },
-];
-
-const BIO_TEXT =
-  "Final-year at IIT Madras by day, digital architect by night. I thrive at the intersection of Generative AI and the Full-Stack, specializing in shipping high-fidelity, interactive experiences that transform the standard URL into an intelligent canvas. From training custom models to seamless deployments, I build the future of the web, one pipeline at a time.";
+const LEFT_STACK = siteContent.stack.left.map((item) => item.label);
+const RIGHT_STACK = siteContent.stack.right.map((item) => item.label);
+const PROJECTS: MobileProject[] = siteContent.projects.items.map((project) => ({
+  ...project,
+}));
+const SOCIALS = siteContent.contact.socials;
+const BIO_TEXT = siteContent.about.bioText;
 
 // ── Animated tech list using IntersectionObserver ────────────────────────────
 
@@ -207,42 +147,112 @@ function MobileTechList({
   );
 }
 
-
 // ── Typewriter for subtitle ─────────────────────────────────────────────────
 
-function TypewriterSubtitle({ onComplete }: { onComplete?: () => void }) {
-  const containerRef = useRef<HTMLParagraphElement>(null);
+function TypewriterSubtitle({
+  onComplete,
+  color,
+}: {
+  onComplete?: () => void;
+  color: string;
+}) {
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
   const onCompleteRef = useRef(onComplete);
+
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const wrapper = wrapperRef.current;
+    const container = containerRef.current;
+    const cursor = cursorRef.current;
+    if (!wrapper || !container || !cursor) return;
 
-    const split = SplitText.create(el, { type: "chars" });
-    gsap.set(split.chars, { opacity: 0 });
+    const split = new SplitText(container, { type: "chars" });
+    const chars = split.chars;
 
-    gsap.to(split.chars, {
-      opacity: 1,
-      duration: 0.01,
-      stagger: 0.05,
-      ease: "none",
-      delay: 0.6,
-      onComplete: () => onCompleteRef.current?.(),
+    const moveCursorAfter = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const wr = wrapper.getBoundingClientRect();
+      cursor.style.left = `${r.right - wr.left}px`;
+      cursor.style.top = `${r.top - wr.top}px`;
+    };
+
+    const firstRect = chars[0]?.getBoundingClientRect();
+    const wr = wrapper.getBoundingClientRect();
+    if (firstRect) {
+      cursor.style.left = `${firstRect.left - wr.left}px`;
+      cursor.style.top = `${firstRect.top - wr.top}px`;
+    }
+
+    container.style.visibility = "visible";
+    gsap.set(chars, { autoAlpha: 0 });
+    gsap.set(cursor, { autoAlpha: 0 });
+
+    const typeTl = gsap.timeline({ delay: 0.6 });
+    const blinkTl = gsap.timeline({ repeat: -1, paused: true });
+
+    blinkTl
+      .to(cursor, { autoAlpha: 0, duration: 0.4, ease: "none" })
+      .to(cursor, { autoAlpha: 1, duration: 0.4, ease: "none" });
+
+    typeTl.set(cursor, { autoAlpha: 1 });
+    typeTl.add(() => {
+      blinkTl.play();
     });
 
-    return () => split.revert();
+    typeTl.to(chars, {
+      autoAlpha: 1,
+      duration: 0.001,
+      stagger: {
+        amount: chars.length * 0.07,
+        onStart() {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const char = (this as any).targets()[0] as Element;
+          moveCursorAfter(char);
+        },
+      },
+      ease: "none",
+      onComplete: () => {
+        blinkTl.kill();
+        gsap.set(cursor, { autoAlpha: 0 });
+        onCompleteRef.current?.();
+      },
+    });
+
+    return () => {
+      typeTl.kill();
+      blinkTl.kill();
+      split.revert();
+    };
   }, []);
 
   return (
-    <p
-      ref={containerRef}
-      className="text-xl font-aldrich tracking-widest text-neutral-400"
+    <span
+      ref={wrapperRef}
+      className="relative inline-block text-xl font-aldrich tracking-widest"
+      style={{ color }}
     >
-      Full Stack AI Engineer
-    </p>
+      <span ref={containerRef} style={{ visibility: "hidden" }}>
+        {siteContent.hero.subtitle}
+      </span>
+      <span
+        ref={cursorRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          display: "inline-block",
+          width: "3px",
+          height: "1em",
+          background: "#ffffff",
+          opacity: 0,
+        }}
+      />
+    </span>
   );
 }
 
@@ -264,6 +274,7 @@ function MobileHero({
     if (node) setCanvasMounted(true);
   }, []);
   const canvasBg = isDark ? "#000000" : "#ffffff";
+  const textColor = isDark ? "#ffffff" : "#000000";
 
   const handleSubtitleComplete = () => {
     onSubtitleComplete();
@@ -274,31 +285,36 @@ function MobileHero({
     <section className="relative min-h-svh flex flex-col items-center justify-center">
       {/* R3F Canvas for the dithered grid intro — stays mounted */}
       <div ref={canvasContainerRef} className="absolute inset-0 z-10">
-        {canvasMounted && <Canvas
-          camera={{ manual: true }}
-          style={{
-            background: canvasBg,
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[0, 10, 10]} intensity={1} />
-          <IntroText
-            onIntroComplete={() => {
-              setShowSubtitle(true);
-              onIntroComplete();
+        {canvasMounted && (
+          <Canvas
+            camera={{ manual: true }}
+            style={{
+              background: canvasBg,
+              width: "100%",
+              height: "100%",
             }}
-            isDark={isDark}
-            forceMobile
-          />
-        </Canvas>}
+          >
+            <ambientLight intensity={0.5} />
+            <directionalLight position={[0, 10, 10]} intensity={1} />
+            <IntroText
+              onIntroComplete={() => {
+                setShowSubtitle(true);
+                onIntroComplete();
+              }}
+              isDark={isDark}
+              forceMobile
+            />
+          </Canvas>
+        )}
       </div>
 
       {/* Typewriter subtitle — appears over the canvas after intro */}
       <div className="relative z-20 flex flex-col items-center justify-center pointer-events-none mt-32">
         {showSubtitle && (
-          <TypewriterSubtitle onComplete={handleSubtitleComplete} />
+          <TypewriterSubtitle
+            onComplete={handleSubtitleComplete}
+            color={textColor}
+          />
         )}
       </div>
 
@@ -365,144 +381,143 @@ export default function MobileSite() {
       />
 
       {/* Content only mounts after intro — prevents scrollbar flash */}
-      {!scrollLocked && <>
+      {!scrollLocked && (
+        <>
+          {/* About Me */}
+          <section className="px-6 py-16">
+            <FadeIn delay={0.1}>
+              <h2 className="text-4xl font-semibold font-aldrich text-center mb-8">
+                {siteContent.sections.aboutMe}
+              </h2>
+            </FadeIn>
+            <div className="relative w-full aspect-video mb-8">
+              <Image
+                src="https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/AboutMeModel.png"
+                alt="Tech cubes"
+                fill
+                className="object-cover rounded-xl"
+              />
+            </div>
+            <FadeIn>
+              <p className="text-base leading-relaxed font-aldrich text-neutral-300">
+                {BIO_TEXT}
+              </p>
+            </FadeIn>
+          </section>
 
-      {/* About Me */}
-      <section className="px-6 py-16">
-        
-        <FadeIn delay={0.1}>
-          <h2 className="text-4xl font-semibold font-aldrich text-center mb-8">
-            About Me
-          </h2>
-        </FadeIn>
-        <div className="relative w-full aspect-video mb-8">
-            <Image
-              src="https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/AboutMeModel.png"
-              alt="Tech cubes"
-              fill
-              className="object-cover rounded-xl"
-            />
-          </div>
-        <FadeIn>
-          <p className="text-base leading-relaxed font-aldrich text-neutral-300">
-            {BIO_TEXT}
-          </p>
-        </FadeIn>
-      </section>
-
-      {/* Stack */}
-      <section className="px-6 py-16">
-        <FadeIn delay={0.1}>
-          <h2 className="text-4xl font-semibold font-aldrich text-center mb-8">
-            Stack
-          </h2>
-        </FadeIn>
-        <FadeIn delay={0.2}>
-          <div className="relative w-full aspect-video mb-8">
-            <Image
-              src="/Stack.png"
-              alt="Tech cubes"
-              fill
-              className="object-cover rounded-xl"
-            />
-          </div>
-        </FadeIn>
-        <div className="grid grid-cols-2 gap-4">
-          <MobileTechList items={LEFT_STACK} side="left" />
-          <MobileTechList items={RIGHT_STACK} side="right" />
-        </div>
-      </section>
-
-      {/* Experience / Projects */}
-      <section className="px-6 py-16">
-        <FadeIn delay={0.1}>
-          <h2 className="text-4xl font-aldrich font-semibold text-center mb-12">
-            Experience
-          </h2>
-        </FadeIn>
-        <div className="flex flex-col gap-16">
-          {PROJECTS.map((project, i) => (
-            <FadeIn key={project.key} delay={0.1 + i * 0.08}>
-              <div className="flex flex-col gap-4">
-                <h3 className="text-2xl font-aldrich font-bold tracking-widest uppercase">
-                  {project.title}
-                </h3>
-                <p className="text-sm font-aldrich text-neutral-500 tracking-widest uppercase">
-                  {project.subText}
-                </p>
-                {(project.showCard !== false) && (
-                  <div
-                    className="relative w-full overflow-hidden rounded-2xl bg-neutral-900"
-                    style={{ aspectRatio: project.aspectRatio ?? "16/9" }}
-                  >
-                    {project.videoSrc ? (
-                      <video
-                        src={project.videoSrc}
-                        loop
-                        muted
-                        playsInline
-                        autoPlay
-                        className="h-full w-full object-contain"
-                      />
-                    ) : project.imageSrc ? (
-                      <Image
-                        src={project.imageSrc!}
-                        alt={project.title.toLowerCase()}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : null}
-                  </div>
-                )}
-                <p className="text-base font-aldrich text-neutral-300 leading-relaxed italic">
-                  {project.description}
-                </p>
+          {/* Stack */}
+          <section className="px-6 py-16">
+            <FadeIn delay={0.1}>
+              <h2 className="text-4xl font-semibold font-aldrich text-center mb-8">
+                {siteContent.sections.stack}
+              </h2>
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <div className="relative w-full aspect-video mb-8">
+                <Image
+                  src="/Stack.png"
+                  alt="Tech cubes"
+                  fill
+                  className="object-cover rounded-xl"
+                />
               </div>
             </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* Contact */}
-      <section className="px-6 py-24">
-        <div className="mx-auto flex max-w-[960px] flex-col items-center text-center">
-          <AvatarMosaic className="mb-16" />
-
-          <FadeIn delay={0.3}>
-            <div className="mt-4">
-              <Magnetic strength={0.15}>
-                <a
-                  href="mailto:vasanthjanarthanan@gmail.com"
-                  className="group inline-flex select-none items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-medium text-black transition-transform duration-200 active:scale-[0.96] font-aldrich"
-                >
-                  vasanthjanarthanan@gmail.com
-                  <span className="inline-block transition-transform duration-300 group-hover:translate-x-0.5">
-                    &rarr;
-                  </span>
-                </a>
-              </Magnetic>
+            <div className="grid grid-cols-2 gap-4">
+              <MobileTechList items={LEFT_STACK} side="left" />
+              <MobileTechList items={RIGHT_STACK} side="right" />
             </div>
-          </FadeIn>
+          </section>
 
-          <FadeIn delay={0.4}>
-            <div className="mt-12 flex gap-6">
-              {SOCIALS.map((s) => (
-                <a
-                  key={s.name}
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-md font-aldrich text-neutral-500 transition-colors duration-200 hover:text-neutral-300"
-                >
-                  {s.name}
-                </a>
+          {/* Experience / Projects */}
+          <section className="px-6 py-16">
+            <FadeIn delay={0.1}>
+              <h2 className="text-4xl font-aldrich font-semibold text-center mb-12">
+                {siteContent.sections.experience}
+              </h2>
+            </FadeIn>
+            <div className="flex flex-col gap-16">
+              {PROJECTS.map((project, i) => (
+                <FadeIn key={project.key} delay={0.1 + i * 0.08}>
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-2xl font-aldrich font-bold tracking-widest uppercase">
+                      {project.title}
+                    </h3>
+                    <p className="text-sm font-aldrich text-neutral-500 tracking-widest uppercase">
+                      {project.subText}
+                    </p>
+                    {project.showCard !== false && (
+                      <div
+                        className="relative w-full overflow-hidden rounded-2xl bg-neutral-900"
+                        style={{ aspectRatio: project.aspectRatio ?? "16/9" }}
+                      >
+                        {project.videoSrc ? (
+                          <video
+                            src={project.videoSrc}
+                            loop
+                            muted
+                            playsInline
+                            autoPlay
+                            className="h-full w-full object-contain"
+                          />
+                        ) : project.imageSrc ? (
+                          <Image
+                            src={project.imageSrc!}
+                            alt={project.title.toLowerCase()}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                    <p className="text-base font-aldrich text-neutral-300 leading-relaxed italic">
+                      {project.description}
+                    </p>
+                  </div>
+                </FadeIn>
               ))}
             </div>
-          </FadeIn>
-        </div>
-      </section>
+          </section>
 
-      </>}
+          {/* Contact */}
+          <section className="px-6 py-24">
+            <div className="mx-auto flex max-w-[960px] flex-col items-center text-center">
+              <AvatarMosaic className="mb-16" />
+
+              <FadeIn delay={0.3}>
+                <div className="mt-4">
+                  <Magnetic strength={0.15}>
+                    <a
+                      href={`mailto:${siteContent.contact.email}`}
+                      className="group inline-flex select-none items-center gap-2 rounded-full bg-white px-6 py-3 text-[14px] font-medium text-black transition-transform duration-200 active:scale-[0.96] font-aldrich"
+                    >
+                      {siteContent.contact.email}
+                      <span className="inline-block transition-transform duration-300 group-hover:translate-x-0.5">
+                        &rarr;
+                      </span>
+                    </a>
+                  </Magnetic>
+                </div>
+              </FadeIn>
+
+              <FadeIn delay={0.4}>
+                <div className="mt-12 flex gap-6">
+                  {SOCIALS.map((s) => (
+                    <a
+                      key={s.name}
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-md font-aldrich text-neutral-500 transition-colors duration-200 hover:text-neutral-300"
+                    >
+                      {s.name}
+                    </a>
+                  ))}
+                </div>
+              </FadeIn>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

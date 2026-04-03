@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { GSDevTools } from "gsap/all";
 import ProjectPage, { type ProjectPageProps } from "./ProjectPage";
+import { siteContent } from "@/app/content/siteContent";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText, GSDevTools);
 
@@ -102,77 +103,35 @@ function RepulseText({
 }
 
 // ── Project data ────────────────────────────────────────────────────────────
-const PROJECTS: (ProjectPageProps & { key: string })[] = [
-  {
-    key: "portal",
-    title: "PORTAL",
-    titlePosition: { x: "-5%", y: "45%" },
-    titleParallaxSpeed: 1.15,
-    subText: "AI Editor",
-    subTextPosition: { x: "10%", y: "53%" },
-    description: "Architected a real-time collaborative 3D engine featuring an AI-driven inference pipeline that synchronizes web-based inputs with Blender via a custom Python plugin.",
-    descriptionPosition: { x: "60%", y: "42%" },
-    descTriggerOffset: "0%",
-    livingCardImgSrc: "/Helper/portal-preview.png",
-    spanText: "",
-    spanPosition: { x: "25%", y: "20%" },
-    spanSize: { width: "30%", height: "60%" },
-  },
-  {
-    key: "arc",
-    title: "ARC IITM",
-    titlePosition: { x: "10%", y: "45%" },
-    titleParallaxSpeed: 1.15,
-    subText: "Internship",
-    subTextPosition: { x: "20%", y: "53%" },
-    description:
-      "Developed a Unity-based XR ecosystem featuring on-device Computer Vision and Dolby Atmos spatial mapping to bridge the gap between physical 3D assets and digital accessibility.",
-    descriptionPosition: { x: "35%", y: "35%" },
-    descTriggerOffset: "-50%",
-    livingCardImgSrc: "/Helper/portal-preview.png",
-    spanText: "",
-    spanPosition: { x: "20%", y: "25%" },
-    spanSize: { width: "35%", height: "50%" },
-    showLivingCard: false,
-  },
-  {
-    key: "freelance",
-    title: "Independent\nEngineer",
-    titleNewLine: true,
-    titlePosition: { x: "-15%", y: "40%" },
-    titleParallaxSpeed: 1.15,
-    subText: "Contract Work",
-    subTextPosition: { x: "0%", y: "53%" },
-    description:
-      "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and AI solutions",
-    descriptionPosition: { x: "25%", y: "40%" },
-    descTriggerOffset: "-50%",
-    livingCardImgSrc: "/Helper/portal-preview.png",
-    spanText: "",
-    spanPosition: { x: "30%", y: "25%" },
-    spanSize: { width: "35%", height: "50%" },
-    showLivingCard: false,
-    screens: 1,
-  },
-  {
-    key: "inter-iit",
-    title: "3D Animation",
-    titlePosition: { x: "-20%", y: "35%" },
-    titleParallaxSpeed: 1.15,
-    subText: "INTER-IIT",
-    subTextPosition: { x: "0%", y: "43%" },
-    description:
-      "Led a team of 5 to create a 3D animated short for the Inter-IIT Meet—India’s premier engineering assembly where the top 0.01% of technical talent competes—overseeing all aspects from concept to post-production",
-    descriptionPosition: { x: "40%", y: "35%" },
-    descTriggerOffset: "-80%",
-    livingCardImgSrc: "/Helper/portal-preview.png",
-    livingCardVideoSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Riseup.mp4",
-    spanText: "",
-    spanPosition: { x: "20%", y: "15%" },
-    spanSize: { width: "16%", height: "65%" },
-    screens: 1,
-  },
-];
+const PROJECT_BY_KEY = Object.fromEntries(
+  siteContent.projects.items.map((project) => [project.key, project]),
+);
+
+const PROJECTS: (ProjectPageProps & { key: string })[] =
+  siteContent.projects.desktop.order.map((key) => {
+    const content = PROJECT_BY_KEY[key];
+    const layout = siteContent.projects.desktop.layouts[key];
+
+    return {
+      key,
+      title: layout.title ?? content.title,
+      titlePosition: layout.titlePosition,
+      titleParallaxSpeed: layout.titleParallaxSpeed,
+      subText: content.subText,
+      subTextPosition: layout.subTextPosition,
+      description: content.description,
+      descriptionPosition: layout.descriptionPosition,
+      descTriggerOffset: layout.descTriggerOffset,
+      livingCardImgSrc: content.imageSrc ?? "/Helper/portal-preview.png",
+      livingCardVideoSrc: content.videoSrc,
+      spanText: layout.spanText,
+      spanPosition: layout.spanPosition,
+      spanSize: layout.spanSize,
+      showLivingCard: layout.showLivingCard,
+      titleNewLine: layout.titleNewLine,
+      screens: layout.screens,
+    };
+  });
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function ProjectsSection() {
@@ -217,12 +176,18 @@ export default function ProjectsSection() {
         if (!el) return;
 
         // Cumulative start position for this project + 1 screen buffer each side for parallax
-        const cumulativeBefore = projectScreens.slice(0, i).reduce((s, v) => s + v, 0);
+        const cumulativeBefore = projectScreens
+          .slice(0, i)
+          .reduce((s, v) => s + v, 0);
         const projectStartSlide = Math.max(0, 1 + cumulativeBefore - 1);
-        const projectEndSlide = Math.min(totalSlides, 1 + cumulativeBefore + projectScreens[i] + 1);
+        const projectEndSlide = Math.min(
+          totalSlides,
+          1 + cumulativeBefore + projectScreens[i] + 1,
+        );
 
         const parallaxScreens = projectEndSlide - projectStartSlide;
-        const parallaxAmount = parallaxScreens * 100 * (project.titleParallaxSpeed - 1); // vw
+        const parallaxAmount =
+          parallaxScreens * 100 * (project.titleParallaxSpeed - 1); // vw
 
         tl.fromTo(
           el,
@@ -238,12 +203,13 @@ export default function ProjectsSection() {
 
       // ── Split-text scroll reveal for all [data-split-anim] elements ────────
       const origins: [number, number][] = [
-        [-60, -30],  // left top
-        [-60, 30],   // left bottom
-        [60, 30],    // right bottom
+        [-60, -30], // left top
+        [-60, 30], // left bottom
+        [60, 30], // right bottom
       ];
 
-      const splitAnimEls = sectionRef.current!.querySelectorAll<HTMLElement>("[data-split-anim]");
+      const splitAnimEls =
+        sectionRef.current!.querySelectorAll<HTMLElement>("[data-split-anim]");
 
       splitAnimEls.forEach((el) => {
         const triggerOffset = el.dataset.triggerOffset || "0%";
@@ -264,16 +230,14 @@ export default function ProjectsSection() {
           scrollTrigger: {
             trigger: el,
             containerAnimation: tl,
-            start: `left+=${parseFloat(triggerOffset) / 100 * window.innerWidth}px 100%`,
+            start: `left+=${(parseFloat(triggerOffset) / 100) * window.innerWidth}px 100%`,
             once: true,
           },
         });
       });
-
     },
     { scope: sectionRef, dependencies: [] },
   );
-  
 
   return (
     <div
@@ -285,12 +249,14 @@ export default function ProjectsSection() {
       <div
         ref={trackRef}
         className="absolute top-0 left-0 h-full flex will-change-transform"
-        style={{ width: `${(1 + PROJECTS.reduce((sum, p) => sum + (p.screens ?? 1.5), 0)) * 100}vw` }}
+        style={{
+          width: `${(1 + PROJECTS.reduce((sum, p) => sum + (p.screens ?? 1.5), 0)) * 100}vw`,
+        }}
       >
         {/* Screen 1 — Title */}
         <div className="relative w-screen h-full flex items-center justify-center shrink-0 bg-black">
           <RepulseText
-            text="Experience"
+            text={siteContent.sections.experience}
             className="text-8xl font-aldrich font-semibold text-white select-none"
           />
         </div>
@@ -310,7 +276,6 @@ export default function ProjectsSection() {
             }}
           />
         ))}
-
       </div>
     </div>
   );

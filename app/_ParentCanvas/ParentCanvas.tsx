@@ -24,6 +24,7 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import { siteContent } from "@/app/content/siteContent";
 
 gsap.registerPlugin(SplitText);
 
@@ -235,7 +236,33 @@ function ParentCanvas({
     }
 
     lenis.start();
+    document.documentElement.classList.remove("lenis-stopped");
+    document.body.classList.remove("lenis-stopped");
+
+    // Lenis cached scrollHeight while overflow:hidden was active (limit=0).
+    // Re-measure after the browser removes overflow:hidden.
+    const rafId = requestAnimationFrame(() => {
+      lenisRef.current?.resize();
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [secondLineDone]);
+
+  // Fallback unlock: release intro lock if subtitle callback doesn't fire.
+  useEffect(() => {
+    if (isSmallScreen || !introComplete || secondLineDone) return;
+
+    const id = window.setTimeout(() => {
+      setSecondLineDone(true);
+      lenisRef.current?.start();
+      document.documentElement.classList.remove("lenis-stopped");
+      document.body.classList.remove("lenis-stopped");
+      requestAnimationFrame(() => {
+        lenisRef.current?.resize();
+      });
+    }, 2000);
+
+    return () => window.clearTimeout(id);
+  }, [isSmallScreen, introComplete, secondLineDone]);
 
   // Scroll arrow: fade+slide in, blink twice every 5s, stop on scroll
   useEffect(() => {
@@ -377,75 +404,77 @@ function ParentCanvas({
 
   return (
     <div className="relative h-screen">
-      
-        <>
-          {/* Main canvas – IntroText owns the camera */}
-          <Canvas
-            camera={{ manual: true }}
-            style={{
-              background: canvasBg,
-              width: "100%",
-              height: "100%",
-              zIndex: 20,
-            }}
-          >
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[0, 10, 10]} intensity={1} />
-            <IntroText
-              onIntroStart={handleIntroStart}
-              onIntroComplete={handleIntroComplete}
-              isDark={isDark}
-            />
-            {isMobile ? null : (
-              <>
-            <HiImText
-              visible={introComplete}
-              isDark={isDark}
-              showScrollText={secondLineDone}
-            />
-            <EffectComposer>
-              <Bloom
-                intensity={0.1}
-                luminanceThreshold={0.6}
-                luminanceSmoothing={0.4}
-                mipmapBlur
+      <>
+        {/* Main canvas – IntroText owns the camera */}
+        <Canvas
+          camera={{ manual: true }}
+          style={{
+            background: canvasBg,
+            width: "100%",
+            height: "100%",
+            zIndex: 20,
+          }}
+        >
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[0, 10, 10]} intensity={1} />
+          <IntroText
+            onIntroStart={handleIntroStart}
+            onIntroComplete={handleIntroComplete}
+            isDark={isDark}
+          />
+          {isMobile ? null : (
+            <>
+              <HiImText
+                visible={introComplete}
+                isDark={isDark}
+                showScrollText={secondLineDone}
               />
-              <Noise opacity={0.06} blendFunction={BlendFunction.SOFT_LIGHT} />
-              <Vignette
-                offset={0.3}
-                darkness={0.7}
-                blendFunction={BlendFunction.NORMAL}
-              />
-            </EffectComposer>
-            </>
-            )}
-          </Canvas>
-
-          {/* "3D AI Engineer" label — centred horizontally, always mounted */}
-          <div
-            className={cn(
-              "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-50 select-none lg:top-[55%]",
-              introComplete ? "visible" : "invisible",
-            )}
-          >
-            <span
-              className={cn(
-                "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
-                "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none ",
-              )}
-            >
-              {introComplete && (
-                <TypewriterLine
-                  text="Full Stack AI Engineer"
-                  delay={1}
-                  color={textColor}
-                  fontFamily="var(--font-aldrich)"
-                  onComplete={() => setSecondLineDone(true)}
+              <EffectComposer>
+                <Bloom
+                  intensity={0.1}
+                  luminanceThreshold={0.6}
+                  luminanceSmoothing={0.4}
+                  mipmapBlur
                 />
-              )}
-            </span>
-          </div>
-        </>
+                <Noise
+                  opacity={0.06}
+                  blendFunction={BlendFunction.SOFT_LIGHT}
+                />
+                <Vignette
+                  offset={0.3}
+                  darkness={0.7}
+                  blendFunction={BlendFunction.NORMAL}
+                />
+              </EffectComposer>
+            </>
+          )}
+        </Canvas>
+
+        {/* "3D AI Engineer" label — centred horizontally, always mounted */}
+        <div
+          className={cn(
+            "pointer-events-none absolute left-1/2 -translate-x-1/2 top-[50%] z-50 select-none lg:top-[55%]",
+            introComplete ? "visible" : "invisible",
+          )}
+        >
+          <span
+            className={cn(
+              "block text-2xl font-normal whitespace-nowrap lg:text-3xl",
+              "tracking-[0.04em] py-[0.15em] px-[0.3em] select-none ",
+            )}
+          >
+            {introComplete && (
+              <TypewriterLine
+                text={siteContent.hero.subtitle}
+                delay={1}
+                color={textColor}
+                fontFamily="var(--font-aldrich)"
+                onComplete={() => setSecondLineDone(true)}
+              />
+            )}
+          </span>
+        </div>
+      </>
 
       {/* Scroll arrow — bottom center, desktop only */}
       {!isSmallScreen && (

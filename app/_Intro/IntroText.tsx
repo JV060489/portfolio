@@ -238,12 +238,15 @@ interface IntroTextProps {
   onIntroStart?: () => void;
   onIntroComplete?: () => void;
   isDark?: boolean;
+  /** Force mobile layout regardless of viewport width */
+  forceMobile?: boolean;
 }
 
 export default function IntroText({
   onIntroStart,
   onIntroComplete,
   isDark = true,
+  forceMobile = false,
 }: IntroTextProps) {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const anchorRef = useRef<THREE.Object3D>(new THREE.Object3D()); // virtual anchor
@@ -275,7 +278,7 @@ export default function IntroText({
   // pointer position from triggering hover on the center cells at anim end.
   const pointerActiveRef = useRef(false);
   const introLayoutIsMobileRef = useRef<boolean | null>(null);
-  const gridRef = useRef<GridConfig>(DESKTOP_GRID);
+  const gridRef = useRef<GridConfig>(forceMobile ? MOBILE_GRID : DESKTOP_GRID);
 
   const { scene, size, raycaster, pointer, gl } = useThree();
   const isMobileViewport = size.width <= MOBILE_BREAKPOINT;
@@ -326,7 +329,7 @@ export default function IntroText({
     // Lock intro layout on first mount so breakpoint changes on resize
     // never rebuild the scene or replay the intro timeline.
     if (introLayoutIsMobileRef.current === null) {
-      introLayoutIsMobileRef.current = window.innerWidth <= MOBILE_BREAKPOINT;
+      introLayoutIsMobileRef.current = forceMobile || window.innerWidth <= MOBILE_BREAKPOINT;
     }
     const introLayoutIsMobile = introLayoutIsMobileRef.current;
     const grid = introLayoutIsMobile ? MOBILE_GRID : DESKTOP_GRID;
@@ -525,7 +528,7 @@ export default function IntroText({
       animating.clear();
       animDoneRef.current = false;
     };
-  }, [scene]);
+  }, [scene, forceMobile]);
 
   // ── Per-cell hover trigger (fires once per instance on first intersect) ──────
   const triggerHover = (id: number, staggerDelay = 0) => {

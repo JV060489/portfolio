@@ -111,7 +111,7 @@ export default function CubesModelScene({ modelState, onHover }: Props) {
   const RESET_DURATION = 1; // seconds
   const draggingRef = useRef(false);
 
-  const { gl } = useThree();
+  const { gl, events } = useThree();
 
   const { nodes } = useGLTF("/Cubes.glb") as unknown as {
     nodes: Record<string, THREE.Mesh>;
@@ -119,7 +119,10 @@ export default function CubesModelScene({ modelState, onHover }: Props) {
 
   // Pointer drag handlers — only active when settled
   useEffect(() => {
-    const canvas = gl.domElement;
+    // When eventSource is set, R3F registers pointer listeners on the
+    // connected element (the wrapper div) instead of gl.domElement.
+    // Attach pointerdown there so the handler actually receives events.
+    const target = (events.connected as HTMLElement) || gl.domElement;
     let lastX = 0;
     let lastY = 0;
     let prevDx = 0;
@@ -150,15 +153,15 @@ export default function CubesModelScene({ modelState, onHover }: Props) {
       velocity.current = { x: prevDy * 0.008, y: prevDx * 0.008 };
     };
 
-    canvas.addEventListener("pointerdown", onDown);
+    target.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
-      canvas.removeEventListener("pointerdown", onDown);
+      target.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [gl]);
+  }, [gl, events.connected]);
 
   useFrame((_, delta) => {
     const g = group.current;

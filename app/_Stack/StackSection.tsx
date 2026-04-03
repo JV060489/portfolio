@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -9,6 +9,7 @@ import { GSDevTools } from "gsap/GSDevTools";
 import { Canvas } from "@react-three/fiber";
 import CubesModelScene from "./CubesModel";
 import CubeRain from "./CubeRain";
+import { siteContent } from "@/app/content/siteContent";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText, GSDevTools);
 
@@ -16,29 +17,28 @@ export interface AnimationState {
   animationProgress: number;
 }
 
-const LEFT_LIST  = ["Next.js", "Express", "Git", "React", "Tailwind", "JavaScript", "TypeScript"];
-const RIGHT_LIST = ["Three.js", "GSAP", "WebGL", "Blender", "ComfyUI", "Pytorch", "Python", "HuggingFace"];
+const LEFT_LIST = siteContent.stack.left.map((item) => item.label);
+const RIGHT_LIST = siteContent.stack.right.map((item) => item.label);
 
 // Map display names → HoverCube names
-const DISPLAY_TO_CUBE: Record<string, string> = {
-  "Next.js": "Next",
-  "Express": "Express",
-  "Git": "Git",
-  "React": "React",
-  "Tailwind": "Tailwind",
-  "JavaScript": "JS",
-  "TypeScript": "Typescript",
-  "Three.js": "ThreeJS",
-  "GSAP": "GSAP",
-  "WebGL": "Webgl",
-  "Modelling": "Blender(Modelling)",
-  "ComfyUI": "Comfy",
-  "Pytorch": "Pytorch",
-  "Python": "Python",
-  "HuggingFace": "HuggingFace",
-};
+const DISPLAY_TO_CUBE: Record<string, string | null> = Object.fromEntries(
+  [...siteContent.stack.left, ...siteContent.stack.right].map((item) => [
+    item.label,
+    item.cube,
+  ]),
+);
 
-function TechList({ items, side, hoveredCube, settled }: { items: string[]; side: "left" | "right"; hoveredCube: string | null; settled: boolean }) {
+function TechList({
+  items,
+  side,
+  hoveredCube,
+  settled,
+}: {
+  items: string[];
+  side: "left" | "right";
+  hoveredCube: string | null;
+  settled: boolean;
+}) {
   const total = items.length;
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,9 +47,16 @@ function TechList({ items, side, hoveredCube, settled }: { items: string[]; side
     if (!el) return;
     const spans = el.querySelectorAll("span");
     if (settled) {
-      gsap.fromTo(spans,
+      gsap.fromTo(
+        spans,
         { x: side === "left" ? -320 : 320, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.7, stagger: 0.06, ease: "back.out(1.7)" }
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.7,
+          stagger: 0.06,
+          ease: "back.out(1.7)",
+        },
       );
     } else {
       gsap.to(spans, {
@@ -70,7 +77,8 @@ function TechList({ items, side, hoveredCube, settled }: { items: string[]; side
       {items.map((name, i) => {
         const norm = (i / (total - 1)) * 2 - 1;
         const indent = Math.round((1 - norm * norm) * 60);
-        const active = hoveredCube === DISPLAY_TO_CUBE[name];
+        const cubeName = DISPLAY_TO_CUBE[name];
+        const active = cubeName ? hoveredCube === cubeName : false;
         return (
           <span
             key={name}
@@ -95,12 +103,18 @@ export default function StackSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const [canvasHost, setCanvasHost] = useState<HTMLDivElement | null>(null);
   const progressRef = useRef(0); // 0→1 across the full pin
   const [showRain, setShowRain] = useState(true);
   const [settled, setSettled] = useState(false);
   const [hoveredCube, setHoveredCube] = useState<string | null>(null);
 
   const modelState = useRef<AnimationState>({ animationProgress: 0 });
+
+  const handleCanvasWrapRef = useCallback((node: HTMLDivElement | null) => {
+    canvasWrapRef.current = node;
+    setCanvasHost(node);
+  }, []);
 
   // Drive `settled` from modelState outside R3F
   useEffect(() => {
@@ -120,7 +134,6 @@ export default function StackSection() {
         return;
 
       const split = SplitText.create(titleRef.current, { type: "words" });
-
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -156,11 +169,7 @@ export default function StackSection() {
         1.25,
       );
       // Canvas fade out and back in for rain-to-model switch
-      tl.to(
-        canvasWrapRef.current,
-        { opacity: 0 },
-        5.5,
-      );
+      tl.to(canvasWrapRef.current, { opacity: 0 }, 5.5);
       // Canvas fade back in for model reveal
       tl.to(
         canvasWrapRef.current,
@@ -187,7 +196,12 @@ export default function StackSection() {
       tl.fromTo(
         split.words,
         { filter: "blur(20px) brightness(0%)", y: 50 },
-        { filter: "blur(0px) brightness(100%)",y: 0, stagger: 0.08, duration: 2 },
+        {
+          filter: "blur(0px) brightness(100%)",
+          y: 0,
+          stagger: 0.08,
+          duration: 2,
+        },
         0,
       );
 
@@ -210,10 +224,6 @@ export default function StackSection() {
       );
 
       tl.to({}, { duration: 3 });
-
-
-
-    
     },
     { scope: sectionRef, dependencies: [] },
   );
@@ -224,30 +234,33 @@ export default function StackSection() {
       className="relative h-screen w-full flex items-center justify-center overflow-hidden"
     >
       <div
-        ref={canvasWrapRef}
+        ref={handleCanvasWrapRef}
         className="absolute inset-0 z-0"
         style={{ opacity: 0, filter: "blur(1px)" }}
       >
-        <Canvas
-          camera={{ position: [0, 0, 12], fov: 60 }}
-          style={{ width: "100%", height: "100%" }}
-          gl={{ alpha: true }}
-          onCreated={({ scene }) => {
-            scene.background = null;
-          }}
-        >
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 10, 5]} intensity={1.2} />
-          <group visible={showRain}>
-            <CubeRain progressRef={progressRef} />
-          </group>
-          <group visible={!showRain}>
-            <CubesModelScene
-              modelState={modelState}
-              onHover={setHoveredCube}
-            />
-          </group>
-        </Canvas>
+        {canvasHost && (
+          <Canvas
+            eventSource={canvasHost}
+            camera={{ position: [0, 0, 12], fov: 60 }}
+            style={{ width: "100%", height: "100%" }}
+            gl={{ alpha: true }}
+            onCreated={({ scene }) => {
+              scene.background = null;
+            }}
+          >
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[5, 10, 5]} intensity={1.2} />
+            <group visible={showRain}>
+              <CubeRain progressRef={progressRef} />
+            </group>
+            <group visible={!showRain}>
+              <CubesModelScene
+                modelState={modelState}
+                onHover={setHoveredCube}
+              />
+            </group>
+          </Canvas>
+        )}
       </div>
 
       {/* Tech label columns — fade in once model settles */}
@@ -255,10 +268,19 @@ export default function StackSection() {
         className="absolute inset-0 z-10 pointer-events-none transition-opacity duration-700 select-none"
         style={{ opacity: settled ? 1 : 0 }}
       >
-        <TechList items={LEFT_LIST}  side="left"  hoveredCube={hoveredCube} settled={settled} />
-        <TechList items={RIGHT_LIST} side="right" hoveredCube={hoveredCube} settled={settled} />
+        <TechList
+          items={LEFT_LIST}
+          side="left"
+          hoveredCube={hoveredCube}
+          settled={settled}
+        />
+        <TechList
+          items={RIGHT_LIST}
+          side="right"
+          hoveredCube={hoveredCube}
+          settled={settled}
+        />
       </div>
-
 
       <p
         className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 text-lg font-aldrich tracking-widest pointer-events-none select-none transition-opacity duration-700 text-neutral-700"
@@ -267,12 +289,12 @@ export default function StackSection() {
         Drag to explore
       </p>
 
-      <div className="relative z-10  px-8 py-4">
+      <div className="relative z-10 px-8 py-4 pointer-events-none">
         <h2
           ref={titleRef}
           className="text-6xl font-semibold font-aldrich text-center"
         >
-          Stack
+          {siteContent.sections.stack}
         </h2>
       </div>
     </div>

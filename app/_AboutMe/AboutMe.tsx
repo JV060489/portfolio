@@ -3,6 +3,8 @@
 import {
   useRef,
   useEffect,
+  useState,
+  useCallback,
   type ForwardRefExoticComponent,
   type RefAttributes,
 } from "react";
@@ -27,6 +29,7 @@ import { button, useControls } from "leva";
 import * as THREE from "three";
 import AboutMeLights from "./AboutMeLights";
 import { useTheme } from "@/app/context/ThemeContext";
+import { siteContent } from "@/app/content/siteContent";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText);
 
@@ -268,9 +271,6 @@ function RepulseText({
   );
 }
 
-const BIO_TEXT =
-  'Final-year at IIT Madras by day, architect of the 3D web by night. I live in the "Blender-to-Browser" pipeline—specializing in shipping high-fidelity, interactive experiences that make the standard URL feel like a canvas.';
-
 function MaskRevealText({
   text,
   className,
@@ -321,6 +321,11 @@ function AboutMe({ shouldAnimate: _ = false }: { shouldAnimate?: boolean }) {
   useTheme();
   const sectionRef = useRef<HTMLDivElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
+  const [canvasHost, setCanvasHost] = useState<HTMLDivElement | null>(null);
+
+  const handleCanvasHost = useCallback((node: HTMLDivElement | null) => {
+    setCanvasHost(node);
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -339,24 +344,27 @@ function AboutMe({ shouldAnimate: _ = false }: { shouldAnimate?: boolean }) {
       {/* Left: text */}
       <div className="flex flex-col justify-center px-20 gap-12 w-1/2">
         <RepulseText
-          text="About Me"
+          text={siteContent.sections.aboutMe}
           className="text-8xl font-semibold font-aldrich"
         />
         <MaskRevealText
-          text={BIO_TEXT}
+          text={siteContent.about.bioText}
           className="text-xl leading-relaxed text-start font-aldrich"
         />
       </div>
 
       {/* Right: 3D model */}
       <div
+        ref={handleCanvasHost}
         className="w-1/2 h-full"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        <Canvas camera={{ manual: true }}>
-          <AboutMeModelScene mouseRef={mouseRef} />
-        </Canvas>
+        {canvasHost && (
+          <Canvas eventSource={canvasHost} camera={{ manual: true }}>
+            <AboutMeModelScene mouseRef={mouseRef} />
+          </Canvas>
+        )}
       </div>
     </div>
   );
