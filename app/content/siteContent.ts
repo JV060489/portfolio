@@ -43,7 +43,7 @@ export const siteContent = {
         subText: "AI Editor",
         description:
           "Architected a real-time collaborative 3D engine featuring an AI-driven inference pipeline that synchronizes web-based inputs with Blender via a custom Python plugin.",
-        imageSrc: "/Helper/portal-preview.png",
+        imageSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/portal.png",
       },
       {
         key: "vizualspace",
@@ -51,7 +51,7 @@ export const siteContent = {
         subText: "Founding Engineer",
         description:
           "Developed a full-stack WebXR discovery platform using React, Next.js, R3F, and AWS while leading a lean technical team",
-        imageSrc: "/Helper/portal-preview.png",
+        imageSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/vizualspace.png",
       },
       {
         key: "arc",

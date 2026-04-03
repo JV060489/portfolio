@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import Image from "next/image";
 import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
 import { cn } from "@/utils/utils";
 
@@ -106,7 +107,7 @@ export function LivingCard({
         style={{ rotateX, rotateY }}
         className={cn(
           "relative overflow-hidden rounded-2xl h-full",
-          "bg-neutral-900 cursor-pointer",
+          "bg-neutral-900",
         )}
       >
         {/* Rotating gradient border — visible on hover */}
@@ -141,9 +142,10 @@ export function LivingCard({
               className="h-full w-full object-contain"
             />
           ) : imageSrc ? (
-            <img
+            <Image
               src={imageSrc}
               alt={alt}
+              fill
               className="h-full w-full object-cover"
             />
           ) : (
