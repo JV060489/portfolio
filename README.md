@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Janarthanan Vasanth — 3D Portfolio
+
+An immersive, interactive 3D portfolio built with React Three Fiber and Next.js. Every section of the site lives inside a WebGL canvas with scroll-driven animations, post-processing effects, and a fully responsive mobile experience.
+
+## Preview
+
+| Section | Highlights |
+|---------|------------|
+| **Intro** | Animated 3D text with typewriter subtitle, scroll-locked cinematic intro |
+| **About Me** | Custom scene lighting and themed sections |
+| **Stack** | Animated cube rain showcasing tech skills |
+| **Projects** | Parallax layouts, living cards with video/image media |
+| **Contact** | Magnetic hover effects, blur-fade transitions, avatar mosaic |
+
+## Tech Stack
+
+### Core
+
+- **Next.js 16** — App Router, dynamic imports with SSR disabled for canvas components
+- **React 19** — Client-side rendering with `useSyncExternalStore` for responsive breakpoints
+- **TypeScript** — End-to-end type safety
+
+### 3D & Graphics
+
+- **Three.js** — Low-level WebGL rendering
+- **React Three Fiber (R3F)** — Declarative Three.js in React
+- **@react-three/drei** — Helpers, abstractions, and ready-made components
+- **@react-three/postprocessing** — Bloom, vignette, and noise effects
+
+### Animation
+
+- **GSAP** — ScrollTrigger-driven animations, SplitText typewriter effects
+- **Framer Motion** — Layout and component transitions
+- **React Spring** — Physics-based animations for 3D objects
+- **Lenis** — Buttery smooth scroll with GSAP ScrollTrigger sync
+
+### Styling
+
+- **Tailwind CSS 4** — Utility-first styling with `tailwind-merge` for class composition
+- **Custom Google Fonts** — Aldrich, Bowlby One, Bitcount Single Ink, Pixelify Sans
+
+### Infrastructure
+
+- **Vercel** — Hosting and deployment
+- **Vercel Blob** — Media asset storage (project images and videos)
+
+## Project Structure
+
+```
+app/
+  _Intro/          # 3D intro text + "Hi I'm" animation
+  _AboutMe/        # About section with custom 3D lights
+  _Stack/          # Tech stack cube rain
+  _Projects/       # Scroll-driven project showcase
+  _Contact/        # Contact section with magnetic effects
+  _ParentCanvas/   # Main R3F canvas, loading screen, cursor light
+  _Mobile/         # Dedicated mobile layout
+  content/         # Centralized site content (siteContent.ts)
+  context/         # Theme context (dark/light)
+```
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Production build
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the site.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Responsive Design
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The site detects touch-primary devices and narrow viewports (`<= 768px`) and serves a dedicated mobile experience. Desktop users get the full 3D canvas with post-processing, smooth scroll, and cursor-tracking light effects.
 
-## Learn More
+## License
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This is a personal portfolio project. All rights reserved.
