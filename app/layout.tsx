@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   title: "Portfolio",
   description: "Janarthanan Vasanth's Portfolio",
   icons: {
-    icon: "/space-invaders-pixel-retro-arcade-svgrepo-com.svg",
+    icon: "/favicon_io/favicon.ico",
   },
 };
 
