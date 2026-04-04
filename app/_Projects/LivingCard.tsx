@@ -10,10 +10,13 @@ interface LivingCardProps {
   imageSrc?: string;
   /** Video source URL — rendered as <video> (takes priority over imageSrc) */
   videoSrc?: string;
+  href?: string;
   /** Alt text for image */
   alt?: string;
   /** Optional content overlay at bottom of card */
   overlay?: React.ReactNode;
+  /** Aspect ratio class — e.g. "video" for aspect-video, or "9/16" for aspect-[9/16] */
+  aspectRatio?: string;
   className?: string;
 /** Click handler */
   onClick?: () => void;
@@ -26,7 +29,9 @@ interface LivingCardProps {
 export function LivingCard({
   imageSrc,
   videoSrc,
+  href,
   alt = "",
+  aspectRatio = "video",
   overlay,
   className,
   onClick,
@@ -91,7 +96,24 @@ export function LivingCard({
     setIsHovered(false);
   }, [rotateX, rotateY, mouseX, mouseY]);
 
+  const handleCardClick = useCallback(() => {
+    onClick?.();
+    if (href) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
+  }, [href, onClick]);
+
+  const handleCardKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!href || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      handleCardClick();
+    },
+    [handleCardClick, href],
+  );
+
   const isVideo = !!videoSrc;
+  const isInteractive = !!href || !!onClick;
 
   return (
     <motion.div
@@ -103,11 +125,16 @@ export function LivingCard({
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={handleMouseLeave}
-        onClick={onClick}
-        style={{ rotateX, rotateY }}
+        onClick={isInteractive ? handleCardClick : undefined}
+        onKeyDown={isInteractive ? handleCardKeyDown : undefined}
+        tabIndex={isInteractive ? 0 : undefined}
+        role={isInteractive ? "link" : undefined}
+        style={{ rotateX, rotateY, aspectRatio: aspectRatio !== "video" ? aspectRatio : undefined }}
         className={cn(
           "relative overflow-hidden rounded-2xl h-full",
+          aspectRatio === "video" ? "aspect-video" : undefined,
           "bg-neutral-900",
+          isInteractive ? "cursor-pointer" : undefined,
         )}
       >
         {/* Rotating gradient border — visible on hover */}
@@ -130,7 +157,7 @@ export function LivingCard({
         {/* Media layer — counter-parallax, slightly oversized */}
         <motion.div
           style={{ x: mediaX, y: mediaY }}
-          className="relative scale-[1.12] h-full grid place-items-center"
+          className="relative h-full grid place-items-center"
         >
           {isVideo ? (
             <video
@@ -157,7 +184,7 @@ export function LivingCard({
         {overlay && (
           <motion.div
             style={{ x: contentX, y: contentY }}
-            className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-6 pb-6 pt-16"
+            className="absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/85 via-black/50 to-transparent px-6 pb-6 pt-16"
           >
             {overlay}
           </motion.div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
 import { LivingCard } from "./LivingCard";
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -33,6 +32,9 @@ export interface ProjectPageProps {
   livingCardImgSrc: string;
   /** Video source for the LivingCard (takes priority over image) */
   livingCardVideoSrc?: string;
+  /** Aspect ratio for the LivingCard — "video" (default) or e.g. "9/16" */
+  livingCardAspectRatio?: string;
+  livingCardHref?: string;
   /** Overlay span text on the LivingCard */
   spanText: string;
   /** Position offset for the LivingCard (px) */
@@ -60,6 +62,8 @@ export default function ProjectPage({
   descriptionPosition,
   livingCardImgSrc,
   livingCardVideoSrc,
+  livingCardAspectRatio,
+  livingCardHref,
   spanText,
   spanPosition,
   spanSize,
@@ -138,6 +142,8 @@ export default function ProjectPage({
           <LivingCard
             imageSrc={livingCardImgSrc}
             videoSrc={livingCardVideoSrc}
+            aspectRatio={livingCardAspectRatio}
+            href={livingCardHref}
             alt={title.toLowerCase()}
             className="w-full h-full"
             overlay={

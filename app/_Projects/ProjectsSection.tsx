@@ -124,6 +124,8 @@ const PROJECTS: (ProjectPageProps & { key: string })[] =
       descTriggerOffset: layout.descTriggerOffset,
       livingCardImgSrc: ("imageSrc" in content ? content.imageSrc : undefined) ?? "/Helper/portal-preview.png",
       livingCardVideoSrc: "videoSrc" in content ? content.videoSrc : undefined,
+      livingCardAspectRatio: "aspectRatio" in content ? content.aspectRatio : undefined,
+      livingCardHref: "href" in content ? content.href : undefined,
       spanText: layout.spanText,
       spanPosition: layout.spanPosition,
       spanSize: layout.spanSize,

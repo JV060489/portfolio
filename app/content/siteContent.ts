@@ -1,5 +1,3 @@
-import { desc } from "framer-motion/client";
-
 export const siteContent = {
   hero: {
     subtitle: "Full Stack AI Engineer",
@@ -42,8 +40,9 @@ export const siteContent = {
         title: "PORTAL",
         subText: "AI Editor",
         description:
-          "Architected a real-time collaborative 3D engine featuring an AI-driven inference pipeline that synchronizes web-based inputs with Blender via a custom Python plugin.",
-        imageSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/portal.png",
+          "A real-time collaborative 3D editor featuring an text to 3D model interface built using React, R3F, Websockets, and Yjs",
+        videoSrc:"https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Portal_Demo.mp4",
+        href: "https://portal-five-flame.vercel.app/",
       },
       {
         key: "vizualspace",
@@ -52,18 +51,19 @@ export const siteContent = {
         description:
           "Developed a full-stack WebXR discovery platform using React, Next.js, R3F, and AWS while leading a lean technical team",
         imageSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/vizualspace.png",
+        href: "",
       },
       {
         key: "arc",
         title: "ARC IITM",
         subText: "Internship",
         description:
-          "Developed a Unity-based XR ecosystem featuring on-device Computer Vision and Dolby Atmos spatial mapping to bridge the gap between physical 3D assets and digital accessibility.",
+          "Contributed to the development of highly accessible web experiences within a technical team, securing 95+/100 Lighthouse Accessibility scores and 100% WCAG 2.2 compliance.",
         showCard: false,
       },
       {
         key: "freelance",
-        title: "Independent Engineer",
+        title: "Independent Engineer" ,
         subText: "Contract Work",
         description:
           "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and AI solutions",
@@ -78,6 +78,7 @@ export const siteContent = {
         videoSrc:
           "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Riseup.mp4",
         aspectRatio: "9/16",
+        href: "",
       },
     ],
     desktop: {
@@ -87,7 +88,7 @@ export const siteContent = {
           titlePosition: { x: "-5%", y: "45%" },
           titleParallaxSpeed: 1.15,
           subTextPosition: { x: "10%", y: "53%" },
-          descriptionPosition: { x: "60%", y: "42%" },
+          descriptionPosition: { x: "60%", y: "38%" },
           descTriggerOffset: "0%",
           spanText: "",
           spanPosition: { x: "25%", y: "20%" },
@@ -97,7 +98,7 @@ export const siteContent = {
           titlePosition: { x: "0%", y: "30%" },
           titleParallaxSpeed: 1.15,
           subTextPosition: { x: "15%", y: "38%" },
-          descriptionPosition: { x: "65%", y: "52%" },
+          descriptionPosition: { x: "68%", y: "45%" },
           descTriggerOffset: "-30%",
           spanText: "",
           spanPosition: { x: "35%", y: "25%" },
@@ -117,7 +118,7 @@ export const siteContent = {
         freelance: {
           title: "Independent\nEngineer",
           titleNewLine: true,
-          titlePosition: { x: "-15%", y: "38%" },
+          titlePosition: { x: "-20%", y: "38%" },
           titleParallaxSpeed: 1.15,
           subTextPosition: { x: "0%", y: "53%" },
           descriptionPosition: { x: "25%", y: "40%" },
