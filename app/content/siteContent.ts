@@ -40,7 +40,7 @@ export const siteContent = {
         title: "PORTAL",
         subText: "AI Editor",
         description:
-          "A real-time collaborative 3D editor featuring a text to 3D interface with bi-directional real time sync with blender built using React, R3F, Websockets, and Yjs",
+          "A collaborative 3D editor featuring a text to 3D interface with bi-directional real-time sync with blender built using React, R3F, Websockets, and Yjs",
         videoSrc:"https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Portal_Demo.mp4",
         href: "https://portal-five-flame.vercel.app/",
       },
