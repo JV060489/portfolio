@@ -57,7 +57,7 @@ export const siteContent = {
         title: "Independent Engineer" ,
         subText: "Contract Work",
         description:
-          "Worked with IITM Pravartak Technologies Foundation and Tamil Nadu State Transport Corporation to deliver innovative technological solutions, including spatial reality applications and immersive museum experiences.",
+          "Worked with IITM Pravartak Technologies Foundation and Tamilnadu Science & Technology Centre to deliver innovative technological solutions, including spatial reality applications and immersive museum experiences.",
         showCard: false,
       },
       {
