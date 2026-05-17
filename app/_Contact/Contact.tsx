@@ -7,7 +7,7 @@ import { siteContent } from "@/app/content/siteContent";
 
 export default function Contact() {
   return (
-    <section className="relative w-full px-6 py-20 bg-black">
+    <section className="relative flex min-h-screen w-full items-center justify-center bg-black px-6 py-20">
       <div className="mx-auto flex max-w-[960px] flex-col items-center text-center">
         {/* Scattered Assembly Avatar — fragments fly together on scroll */}
         <AvatarMosaic className="mb-16" />
