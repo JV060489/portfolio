@@ -10,7 +10,7 @@ const FONT_URLS = [
   "/fonts/Roboto_Condensed-Black.ttf",
 ];
 
-const MODEL_URLS = ["/AboutMe.glb"];
+const MODEL_URLS = ["/LightsModel.glb"];
 
 const FONT_FACES = [
   '400 40px "Pixelify Sans"',

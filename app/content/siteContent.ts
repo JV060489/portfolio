@@ -73,7 +73,7 @@ export const siteContent = {
       },
     ],
     desktop: {
-      order: ["portal", "vizualspace", "arc", "freelance", "inter-iit"],
+      order: ["vizualspace", "arc", "freelance", "inter-iit"],
       layouts: {
         portal: {
           titlePosition: { x: "-5%", y: "45%" },
