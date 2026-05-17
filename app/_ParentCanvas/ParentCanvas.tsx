@@ -158,7 +158,8 @@ function TypewriterLine({
 
 function ParentCanvas({
   onIntroComplete,
-}: { onIntroComplete?: () => void } = {}) {
+  playIntro = true,
+}: { onIntroComplete?: () => void; playIntro?: boolean } = {}) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const isMobile = useIsMobile();
@@ -421,6 +422,7 @@ function ParentCanvas({
             onIntroStart={handleIntroStart}
             onIntroComplete={handleIntroComplete}
             isDark={isDark}
+            playIntro={playIntro}
           />
           {isMobile ? null : (
             <>
@@ -497,10 +499,14 @@ function ParentCanvas({
       )}
       {/* About Me section */}
 
-      <AboutMe shouldAnimate={secondLineDone} />
-      <StackSection />
-      <ProjectsSection />
-      <Contact />
+      {playIntro && (
+        <>
+          <AboutMe shouldAnimate={secondLineDone} />
+          <StackSection />
+          <ProjectsSection />
+          <Contact />
+        </>
+      )}
     </div>
   );
 }

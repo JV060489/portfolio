@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { OrthographicCamera } from "@react-three/drei";
 import * as THREE from "three";
@@ -240,6 +240,8 @@ interface IntroTextProps {
   isDark?: boolean;
   /** Force mobile layout regardless of viewport width */
   forceMobile?: boolean;
+  /** Build and warm the scene immediately, but delay the visible intro until true */
+  playIntro?: boolean;
 }
 
 export default function IntroText({
@@ -247,10 +249,14 @@ export default function IntroText({
   onIntroComplete,
   isDark = true,
   forceMobile = false,
+  playIntro = true,
 }: IntroTextProps) {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const anchorRef = useRef<THREE.Object3D>(new THREE.Object3D()); // virtual anchor
   const camLocalPos = useRef(new THREE.Vector3(0, 0, 1000));
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const introStartedRef = useRef(false);
+  const [sceneReady, setSceneReady] = useState(false);
 
   // Keep a stable ref so the GSAP timeline always calls the latest callback
   // without needing to be listed as a useEffect dependency.
@@ -445,7 +451,6 @@ export default function IntroText({
       meshRef.current = mesh;
       zHoverRef.current = new Float32Array(count); // all zeros
       animDoneRef.current = false;
-      onIntroStartRef.current?.();
 
       group = new THREE.Group();
       group.add(mesh);
@@ -467,15 +472,10 @@ export default function IntroText({
 
       // ── GSAP timeline ─────────────────────────────────────────────────────────
       if (SKIP_INTRO) {
-        // Jump straight to the post-animation state
-        material.uniforms.uDitherProgress.value = 1;
-        cam.zoom = introConfig.targetZoom;
-        cam.updateProjectionMatrix();
-        animDoneRef.current = true;
-        // Notify parent on next tick so React commit phase is done
-        requestAnimationFrame(() => onIntroCompleteRef.current?.());
+        timelineRef.current = null;
       } else {
         tl = gsap.timeline({
+          paused: true,
           onComplete: () => {
             animDoneRef.current = true; // unlock hover once intro finishes
             onIntroCompleteRef.current?.();
@@ -504,7 +504,10 @@ export default function IntroText({
           },
           0,
         );
+        timelineRef.current = tl;
       }
+
+      setSceneReady(true);
 
       // (removed anchor pan so the scene starts centered and zoom animation plays from there)
     }; // end buildScene
@@ -514,7 +517,10 @@ export default function IntroText({
     // Cleanup
     return () => {
       disposed = true;
+      setSceneReady(false);
       tl?.kill();
+      timelineRef.current = null;
+      introStartedRef.current = false;
       if (group) scene.remove(group);
       mesh?.dispose();
       geometry?.dispose();
@@ -529,6 +535,28 @@ export default function IntroText({
       animDoneRef.current = false;
     };
   }, [scene, forceMobile]);
+
+  useEffect(() => {
+    const cam = cameraRef.current;
+    const material = materialRef.current;
+    if (!sceneReady || !playIntro || introStartedRef.current || !cam || !material) {
+      return;
+    }
+
+    introStartedRef.current = true;
+    onIntroStartRef.current?.();
+
+    if (SKIP_INTRO) {
+      material.uniforms.uDitherProgress.value = 1;
+      cam.zoom = gridRef.current === MOBILE_GRID ? 1.9 : 2.5;
+      cam.updateProjectionMatrix();
+      animDoneRef.current = true;
+      requestAnimationFrame(() => onIntroCompleteRef.current?.());
+      return;
+    }
+
+    timelineRef.current?.play(0);
+  }, [sceneReady, playIntro]);
 
   // ── Per-cell hover trigger (fires once per instance on first intersect) ──────
   const triggerHover = (id: number, staggerDelay = 0) => {

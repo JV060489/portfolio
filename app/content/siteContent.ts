@@ -1,6 +1,6 @@
 export const siteContent = {
   hero: {
-    subtitle: "Full Stack AI Engineer",
+    subtitle: "XR AI Engineer",
   },
   sections: {
     aboutMe: "About Me",
@@ -9,7 +9,7 @@ export const siteContent = {
   },
   about: {
     bioText:
-      "Final-year at IIT Madras by day, digital architect by night. I thrive at the intersection of Generative AI and the Full-Stack, specializing in shipping high-fidelity, interactive experiences that transform the standard URL into an intelligent canvas. From training custom models to seamless deployments, I build the future of the web, one pipeline at a time.",
+      "From IIT Madras, I bring 3+ years of experience designing and building at the intersection of Generative AI and XR systems, specializing in shipping high-fidelity, immersive experiences that transform our reality. From training custom models to seamless interactions, I build the future of the XR, one pipeline at a time.",
   },
   stack: {
     left: [
@@ -36,20 +36,11 @@ export const siteContent = {
   projects: {
     items: [
       {
-        key: "portal",
-        title: "PORTAL",
-        subText: "AI Editor",
-        description:
-          "A collaborative 3D editor featuring a text to 3D interface with bi-directional real-time sync with blender built using React, R3F, Websockets, and Yjs",
-        videoSrc:"https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Portal_Demo.mp4",
-        href: "https://portal-five-flame.vercel.app/",
-      },
-      {
         key: "vizualspace",
         title: "VIZUALSPACE",
         subText: "Founding Engineer",
         description:
-          "Developed a full-stack WebXR discovery platform using React, Next.js, R3F, and AWS while leading a lean technical team",
+          "Worked on integrating XR into education to create immersive learning experiences that improve student engagement and understanding.",
         imageSrc: "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/vizualspace.png",
         href: "",
       },
@@ -58,7 +49,7 @@ export const siteContent = {
         title: "ARC IITM",
         subText: "Internship",
         description:
-          "Contributed to the development of highly accessible web experiences within a technical team, securing 95+/100 Lighthouse Accessibility scores and 100% WCAG 2.2 compliance.",
+          "Built inclusive XR educational systems integrated with immersive Dolby spatial audio to deliver engaging STEM learning experiences",
         showCard: false,
       },
       {
@@ -66,7 +57,7 @@ export const siteContent = {
         title: "Independent Engineer" ,
         subText: "Contract Work",
         description:
-          "Partnered with a diverse portfolio of startups and government agencies to deploy high-impact 3D and AI solutions",
+          "Worked with IITM Pravartak Technologies Foundation and Tamil Nadu State Transport Corporation to deliver innovative technological solutions, including spatial reality applications and immersive museum experiences.",
         showCard: false,
       },
       {
@@ -74,7 +65,7 @@ export const siteContent = {
         title: "3D Animation",
         subText: "INTER-IIT",
         description:
-          "Led a team of 5 to create a 3D animated short for the Inter-IIT Meet-India's premier engineering assembly where the top 0.01% of technical talent competes-overseeing all aspects from concept to post-production",
+          "Produced a 3D animated short for the Inter-IIT Meet, managing all stages from ideation and animation to final post-production.",
         videoSrc:
           "https://ehhcbsxrpaziywth.public.blob.vercel-storage.com/Riseup.mp4",
         aspectRatio: "9/16",

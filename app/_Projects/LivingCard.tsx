@@ -133,7 +133,7 @@ export function LivingCard({
         className={cn(
           "relative overflow-hidden rounded-2xl h-full",
           aspectRatio === "video" ? "aspect-video" : undefined,
-          "bg-neutral-900",
+          "bg-black",
           isInteractive ? "cursor-pointer" : undefined,
         )}
       >
@@ -176,7 +176,7 @@ export function LivingCard({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="aspect-video w-full bg-neutral-800" />
+            <div className="aspect-video w-full bg-black" />
           )}
         </motion.div>
 

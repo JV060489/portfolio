@@ -55,11 +55,12 @@ function Page() {
       className="relative h-screen"
       style={{ background: "var(--bg, #000000)" }}
     >
+      <ParentCanvas
+        playIntro={assetsReady}
+        onIntroComplete={() => setIntroComplete(true)}
+      />
       {!assetsReady && (
         <LoadingScreen onComplete={() => setAssetsReady(true)} />
-      )}
-      {assetsReady && (
-        <ParentCanvas onIntroComplete={() => setIntroComplete(true)} />
       )}
       {introComplete && <CursorLight />}
     </main>
